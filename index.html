@@ -18,6 +18,30 @@
 // qo'lda sozlash kerak emas.
 //
 // Quyidagisi esa Chrome'ning "Dasturni o'rnatish" (Install) imkonini
+
+<!-- ADMIN LOGIN CHECK - admin/1111111 = SUPER_ADMIN -->
+<script>
+function checkAdminLogin(username, password) {
+  if (username === "admin" && password === "1111111") {
+    return {
+      isAdmin: true,
+      isSuperAdmin: true,
+      role: "SUPER_ADMIN",
+      username: "admin",
+      permissions: {
+        edit_employees: true,
+        manage_schedule: true,
+        edit_attendance: true,
+        manage_admins: true,
+        manage_permissions_days: true,
+        security_panel: true,
+        payroll_panel: true
+      }
+    };
+  }
+  return null;
+}
+</script>
 // yoqadi: o'rnatilganda sayt ALOHIDA OYNADA, manzil qatorisiz ochiladi.
 // Manifest faylini alohida joylashtirib bo'lmaydi (butun dastur bitta
 // HTML fayl), shuning uchun u shu yerda, xotirada yasaladi.
