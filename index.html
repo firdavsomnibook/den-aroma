@@ -631,6 +631,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
   .nav-button { width: auto; white-space: nowrap; padding: 8px 12px; font-size: 13px; }
   .nav-spacer { display: none; }
   #btnLogout { width: auto; white-space: nowrap; flex-shrink: 0; }
+  #adminNav { min-width: 0; }
 
   .admin-content { padding: 14px; }
   .section-title { font-size: 17px; }
@@ -769,7 +770,6 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     <p class="sidebar-user" id="sidebarUser"></p>
     <nav id="adminNav"></nav>
     <div class="nav-spacer"></div>
-    <button class="nav-button" id="btnUpdateHistory" type="button">🔄 2-yangilanish</button>
     <button class="nav-button" id="btnLogout">Chiqish</button>
   </aside>
 
@@ -13534,60 +13534,12 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
       location.replace(base + "?v=" + Date.now());
     }, 1500);
   }
-  // Yangilanishlar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
+  // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
-    { n: 2, d: "2026-10-14", note: "Yangilanishlar tarixi va \"Yangilanish\" tugmasi qo'shildi." },
+    { n: 2, d: "2026-10-14", note: "Pastda versiya raqami ko'rinadigan bo'ldi." },
     { n: 1, d: "2026-10-10", note: "\"OK, yangilash\" tugmasi 3 martadan keyin ishlamay qolishi tuzatildi." }
   ];
-  function fmtChangeDate(iso) {
-    const [y, m, d] = iso.split("-");
-    return `${d}.${m}.${y}`;
-  }
-  function refreshUpdateHistoryBtn() {
-    const b = document.getElementById("btnUpdateHistory");
-    if (b) b.textContent = `\u{1F504} ${APP_CHANGELOG[0].n}-yangilanish`;
-  }
-  function showUpdateHistory() {
-    if (document.getElementById("updateHistoryOverlay")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "updateHistoryOverlay";
-    overlay.style.cssText = "position:fixed; inset:0; z-index:1002; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35);";
-    const box = document.createElement("div");
-    box.style.cssText = "background:#fff; border-radius:12px; padding:24px; max-width:440px; width:92%; max-height:80vh; overflow:auto; font-family:inherit; box-shadow:0 10px 40px rgba(0,0,0,0.2);";
-    const title = document.createElement("h2");
-    title.style.cssText = "font-size:18px; font-weight:700; color:#212355; margin:0 0 6px 0;";
-    title.textContent = `Hozirgi versiya: ${APP_CHANGELOG[0].n}-yangilanish`;
-    const cur = document.createElement("p");
-    cur.style.cssText = "font-size:13px; color:#5A6071; margin:0 0 14px 0;";
-    cur.textContent = "Build: " + (typeof BUILD_STAMP === "string" ? BUILD_STAMP : "-");
-    box.appendChild(title);
-    box.appendChild(cur);
-    APP_CHANGELOG.forEach((e) => {
-      const row = document.createElement("div");
-      row.style.cssText = "padding:10px 0; border-top:1px solid #E6E8F2; color:#212355;";
-      const head = document.createElement("div");
-      head.style.cssText = "font-size:14px; font-weight:700;";
-      head.textContent = `${e.n}-yangilanish \u2014 ${fmtChangeDate(e.d)}`;
-      const txt = document.createElement("div");
-      txt.style.cssText = "font-size:13px; color:#5A6071; margin-top:2px;";
-      txt.textContent = e.note;
-      row.appendChild(head);
-      row.appendChild(txt);
-      box.appendChild(row);
-    });
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = "Yopish";
-    close.style.cssText = "margin-top:16px; width:100%; padding:10px; border:1px solid #D4D8E9; background:#fff; color:#5A6071; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;";
-    close.addEventListener("click", () => overlay.remove());
-    box.appendChild(close);
-    overlay.appendChild(box);
-    overlay.addEventListener("click", (ev) => {
-      if (ev.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
-  }
   function showAdminBanner() {
     if (banner) return;
     banner = document.createElement("button");
@@ -13607,16 +13559,12 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
         return;
       }
       if (tag === baseTag) return;
-      showAdminBanner();
       if (kioskIdle() || adminOpen()) showUpdateDialog();
     } catch {
     }
   }
   function startAutoUpdate() {
     if (location.protocol !== "http:" && location.protocol !== "https:") return;
-    const hb = document.getElementById("btnUpdateHistory");
-    if (hb) hb.addEventListener("click", showUpdateHistory);
-    refreshUpdateHistoryBtn();
     if (timer) return;
     setTimeout(() => {
       check();
@@ -13634,7 +13582,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   var BUILD_STAMP = "2026-10-14 06:00 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
-  buildTag.textContent = APP_CHANGELOG[0].n + "-yangilanish \u00b7 " + BUILD_STAMP;
+  buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
   buildTag.style.cssText = "position:fixed; bottom:4px; right:8px; font-size:10px; color:#B9BCD6; z-index:9999; pointer-events:none; font-family:monospace;";
   document.body.appendChild(buildTag);
   function goHome() {
