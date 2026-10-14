@@ -769,7 +769,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     <p class="sidebar-user" id="sidebarUser"></p>
     <nav id="adminNav"></nav>
     <div class="nav-spacer"></div>
-    <button class="nav-button" id="btnUpdateHistory" type="button">🔄 Yangilanishlar (0)</button>
+    <button class="nav-button" id="btnUpdateHistory" type="button">🔄 2-yangilanish</button>
     <button class="nav-button" id="btnLogout">Chiqish</button>
   </aside>
 
@@ -13528,90 +13528,52 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
     }
     if (rec.n >= MAX_RELOADS) return;
     ss(COUNT_KEY, JSON.stringify({ n: rec.n + 1, t: rec.t }));
-    markUpdateApplied();
     showReloadNotice();
     setTimeout(() => {
       const base = location.pathname;
       location.replace(base + "?v=" + Date.now());
     }, 1500);
   }
-  var UPDATE_LOG_KEY = "shifoat_update_log";
-  var UPDATE_LASTTAG_KEY = "shifoat_update_lasttag";
-  function getUpdateLog() {
-    try {
-      const a = JSON.parse(localStorage.getItem(UPDATE_LOG_KEY) || "[]");
-      return Array.isArray(a) ? a : [];
-    } catch {
-      return [];
-    }
-  }
-  function saveUpdateLog(list) {
-    try {
-      localStorage.setItem(UPDATE_LOG_KEY, JSON.stringify(list.slice(-200)));
-    } catch {
-    }
-  }
-  function fmtUpdateDate(ts) {
-    const d = new Date(ts);
-    const z = (n) => String(n).padStart(2, "0");
-    return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`;
+  // Yangilanishlar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
+  // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
+  var APP_CHANGELOG = [
+    { n: 2, d: "2026-10-14", note: "Yangilanishlar tarixi va \"Yangilanish\" tugmasi qo'shildi." },
+    { n: 1, d: "2026-10-10", note: "\"OK, yangilash\" tugmasi 3 martadan keyin ishlamay qolishi tuzatildi." }
+  ];
+  function fmtChangeDate(iso) {
+    const [y, m, d] = iso.split("-");
+    return `${d}.${m}.${y}`;
   }
   function refreshUpdateHistoryBtn() {
     const b = document.getElementById("btnUpdateHistory");
-    if (b) b.textContent = `\u{1F504} Yangilanishlar (${getUpdateLog().length})`;
-  }
-  // Yangi versiya aniqlanganda bir marta yoziladi (sana bilan).
-  function logUpdateDetected(tag) {
-    try {
-      if (localStorage.getItem(UPDATE_LASTTAG_KEY) === tag) return;
-      localStorage.setItem(UPDATE_LASTTAG_KEY, tag);
-    } catch {
-    }
-    const list = getUpdateLog();
-    list.push({ t: Date.now(), applied: false });
-    saveUpdateLog(list);
-    refreshUpdateHistoryBtn();
-  }
-  function markUpdateApplied() {
-    const list = getUpdateLog();
-    if (list.length) {
-      list[list.length - 1].applied = true;
-      list[list.length - 1].at = Date.now();
-      saveUpdateLog(list);
-    }
+    if (b) b.textContent = `\u{1F504} ${APP_CHANGELOG[0].n}-yangilanish`;
   }
   function showUpdateHistory() {
     if (document.getElementById("updateHistoryOverlay")) return;
-    const list = getUpdateLog().slice().reverse();
     const overlay = document.createElement("div");
     overlay.id = "updateHistoryOverlay";
     overlay.style.cssText = "position:fixed; inset:0; z-index:1002; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35);";
     const box = document.createElement("div");
-    box.style.cssText = "background:#fff; border-radius:12px; padding:24px; max-width:420px; width:92%; max-height:80vh; overflow:auto; font-family:inherit; box-shadow:0 10px 40px rgba(0,0,0,0.2);";
+    box.style.cssText = "background:#fff; border-radius:12px; padding:24px; max-width:440px; width:92%; max-height:80vh; overflow:auto; font-family:inherit; box-shadow:0 10px 40px rgba(0,0,0,0.2);";
     const title = document.createElement("h2");
     title.style.cssText = "font-size:18px; font-weight:700; color:#212355; margin:0 0 6px 0;";
-    title.textContent = `Yangilanishlar: ${list.length} marta`;
+    title.textContent = `Hozirgi versiya: ${APP_CHANGELOG[0].n}-yangilanish`;
     const cur = document.createElement("p");
     cur.style.cssText = "font-size:13px; color:#5A6071; margin:0 0 14px 0;";
-    cur.textContent = "Joriy versiya: " + (typeof BUILD_STAMP === "string" ? BUILD_STAMP : "-");
+    cur.textContent = "Build: " + (typeof BUILD_STAMP === "string" ? BUILD_STAMP : "-");
     box.appendChild(title);
     box.appendChild(cur);
-    if (!list.length) {
-      const empty = document.createElement("p");
-      empty.style.cssText = "font-size:14px; color:#5A6071; margin:0 0 14px 0;";
-      empty.textContent = "Bu qurilmada hali yangilanish bo'lmagan.";
-      box.appendChild(empty);
-    }
-    list.forEach((e, i) => {
+    APP_CHANGELOG.forEach((e) => {
       const row = document.createElement("div");
-      row.style.cssText = "display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid #E6E8F2; font-size:14px; color:#212355;";
-      const a = document.createElement("span");
-      a.textContent = `${list.length - i}. ${fmtUpdateDate(e.t)}`;
-      const b = document.createElement("span");
-      b.style.cssText = "font-weight:600; color:" + (e.applied ? "#17A94B" : "#B3121F") + ";";
-      b.textContent = e.applied ? "yangilandi" : "kutilmoqda";
-      row.appendChild(a);
-      row.appendChild(b);
+      row.style.cssText = "padding:10px 0; border-top:1px solid #E6E8F2; color:#212355;";
+      const head = document.createElement("div");
+      head.style.cssText = "font-size:14px; font-weight:700;";
+      head.textContent = `${e.n}-yangilanish \u2014 ${fmtChangeDate(e.d)}`;
+      const txt = document.createElement("div");
+      txt.style.cssText = "font-size:13px; color:#5A6071; margin-top:2px;";
+      txt.textContent = e.note;
+      row.appendChild(head);
+      row.appendChild(txt);
       box.appendChild(row);
     });
     const close = document.createElement("button");
@@ -13645,7 +13607,6 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
         return;
       }
       if (tag === baseTag) return;
-      logUpdateDetected(tag);
       showAdminBanner();
       if (kioskIdle() || adminOpen()) showUpdateDialog();
     } catch {
@@ -13673,7 +13634,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   var BUILD_STAMP = "2026-10-14 06:00 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
-  buildTag.textContent = "build: " + BUILD_STAMP;
+  buildTag.textContent = APP_CHANGELOG[0].n + "-yangilanish \u00b7 " + BUILD_STAMP;
   buildTag.style.cssText = "position:fixed; bottom:4px; right:8px; font-size:10px; color:#B9BCD6; z-index:9999; pointer-events:none; font-family:monospace;";
   document.body.appendChild(buildTag);
   function goHome() {
