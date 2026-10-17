@@ -1458,6 +1458,15 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
         <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="6" /> Yakshanba</label>
       </div>
       <span class="muted" style="font-size:12px;">Hech biri tanlanmasa &mdash; dam kuni yo'q (har kuni ishlaydi).</span>
+      <!-- 17.10.2026 so'rovi: "2 haftada 1 marta dam" (masalan 2 haftada 1 seshanba).
+           Dam kunlaridan birining sanasi kiritiladi - shu kundan boshlab har 14 kunda
+           takrorlanadi. -->
+      <label style="margin-top:10px;">2 haftada 1 marta dam kuni (ixtiyoriy) &mdash; dam kunlaridan birining sanasi</label>
+      <div class="weekday-ov-add">
+        <input type="date" id="empBiweeklyFrom" />
+        <button class="btn btn-secondary" type="button" id="btnEmpBiweeklyClear">Tozalash</button>
+      </div>
+      <span class="muted" style="font-size:12px;" id="empBiweeklyHint">Bo'sh qoldirilsa &mdash; yo'q. Sana kiritilsa, o'sha kun dam, keyingi dam kuni 14 kundan keyin, va shunday davom etadi.</span>
     </div>
     <!-- 05.09.2026 so'rovi: maosh endi bu yerda SO'RALMAYDI — oy oxirida,
          aniq bo'lgach, "Maosh" bo'limida kiritiladi. Maydonlar butunlay
@@ -2326,6 +2335,8 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
         workEnd: fields.workEnd,
         weeklyRestDay: fields.weeklyRestDay,
         weeklyRestDays: fields.weeklyRestDays || null,
+        // 17.10.2026: "2 haftada 1 marta dam" — shu sanadan boshlab har 14 kunda.
+        biweeklyRestFrom: fields.biweeklyRestFrom || null,
         avgMonthlySalary: fields.avgMonthlySalary,
         workDaysPerMonth: fields.workDaysPerMonth,
         // 13.09.2026: haftaning ayrim kunlari uchun boshqa ish vaqti —
@@ -3640,6 +3651,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       workEnd: fields.workEnd,
       weeklyRestDay: fields.weeklyRestDay,
       weeklyRestDays: fields.weeklyRestDays || null,
+      biweeklyRestFrom: fields.biweeklyRestFrom || null,
       // 13.09.2026 so'rovi: "bitta xodim doim 14:00-24:00 ishlaydi, lekin
       // YAKSHANBA kunlari 10:00-24:00". Ya'ni haftaning ayrim kunlari
       // uchun boshqa vaqt. Bu yerda { "6": { workStart, workEnd } }
@@ -4835,8 +4847,21 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     const d = schedule.weeklyRestDay;
     return d == null || d === REST_DAY_NONE ? [] : [Number(d)];
   }
+  // 17.10.2026: "2 haftada 1 marta dam kuni". biweeklyRestFrom - dam kunlaridan
+  // birining sanasi (YYYY-MM-DD); shu sanadan oldin ham, keyin ham har 14 kunda
+  // takrorlanadi. Hafta kuni sananing o'zidan olinadi.
+  function daysBetweenKeys(aKey, bKey) {
+    const [ay, am, ad] = String(aKey).split("-").map(Number);
+    const [by, bm, bd] = String(bKey).split("-").map(Number);
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 864e5);
+  }
+  function isBiweeklyRestDay(schedule, dateKey) {
+    const from = schedule && schedule.biweeklyRestFrom;
+    if (!from || !/^\d{4}-\d{2}-\d{2}$/.test(from)) return false;
+    return ((daysBetweenKeys(from, dateKey) % 14) + 14) % 14 === 0;
+  }
   function hasWeeklyRest(schedule) {
-    return restDaysOf(schedule).length > 0;
+    return restDaysOf(schedule).length > 0 || !!(schedule && schedule.biweeklyRestFrom);
   }
   function applyWeekdayOverride(version, dateKey) {
     if (!version || !version.weekdayOverrides) return version;
@@ -4863,6 +4888,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
   function computeDayStatusFromSchedule(schedule, dateKey) {
     if (!schedule) return DAY_STATUS_WORK;
     const weekday = weekdayIndexMonday0(dateKey);
+    if (isBiweeklyRestDay(schedule, dateKey)) return DAY_STATUS_REST;
     return restDaysOf(schedule).includes(weekday) ? DAY_STATUS_REST : DAY_STATUS_WORK;
   }
   function resolveDayStatusSync(explicitStatus, scheduleHistory, dateKey) {
@@ -9192,6 +9218,7 @@ ${origLine}${reasonLine}` });
       workEnd: fields.workEnd,
       weeklyRestDay: fields.weeklyRestDay,
       weeklyRestDays: fields.weeklyRestDays || null,
+      biweeklyRestFrom: fields.biweeklyRestFrom || null,
       weekdayOverrides: fields.weekdayOverrides || null,
       // 15.09.2026: ikkinchi ish oralig'i (bo'linadigan ish kuni).
       workStart2: fields.workStart2 || null,
@@ -9220,7 +9247,7 @@ ${origLine}${reasonLine}` });
       scheduleFields ? db2.getCurrentSchedule(employeeId, todayKey) : Promise.resolve(null)
     ]);
     if (scheduleFields) {
-      const changed = !current || current.workStart !== scheduleFields.workStart || current.workEnd !== scheduleFields.workEnd || JSON.stringify(restDaysOf(current)) !== JSON.stringify(restDaysOf(scheduleFields)) || current.avgMonthlySalary !== scheduleFields.avgMonthlySalary || current.workDaysPerMonth !== scheduleFields.workDaysPerMonth || // 13.09.2026: haftalik istisnolar o'zgargan bo'lsa ham yangi
+      const changed = !current || current.workStart !== scheduleFields.workStart || current.workEnd !== scheduleFields.workEnd || JSON.stringify(restDaysOf(current)) !== JSON.stringify(restDaysOf(scheduleFields)) || (current.biweeklyRestFrom || null) !== (scheduleFields.biweeklyRestFrom || null) || current.avgMonthlySalary !== scheduleFields.avgMonthlySalary || current.workDaysPerMonth !== scheduleFields.workDaysPerMonth || // 13.09.2026: haftalik istisnolar o'zgargan bo'lsa ham yangi
       // versiya yozilishi kerak (JSON.stringify — tartibi bir xil
       // bo'lgani uchun ishonchli: ikkalasi ham shu yerda yasaladi).
       JSON.stringify(current.weekdayOverrides || null) !== JSON.stringify(scheduleFields.weekdayOverrides || null) || // 15.09.2026: ikkinchi smena qo'shilgan/o'chirilgan/o'zgargan bo'lsa
@@ -9236,7 +9263,7 @@ ${origLine}${reasonLine}` });
           "SCHEDULE_CHANGED",
           "employee",
           employeeId,
-          `from=${todayKey} ${scheduleFields.workStart}-${scheduleFields.workEnd} rest_days=${restDaysOf(scheduleFields).join(",") || "yo'q"}`
+          `from=${todayKey} ${scheduleFields.workStart}-${scheduleFields.workEnd} rest_days=${restDaysOf(scheduleFields).join(",") || "yo'q"} biweekly_from=${scheduleFields.biweeklyRestFrom || "yo'q"}`
         );
       }
     }
@@ -9577,6 +9604,17 @@ ${origLine}${reasonLine}` });
       cb.checked = set.has(cb.value);
     });
   }
+  function showBiweeklyHint() {
+    const v = document.getElementById("empBiweeklyFrom").value;
+    const hint = document.getElementById("empBiweeklyHint");
+    if (!hint) return;
+    if (!v) {
+      hint.textContent = "Bo'sh qoldirilsa \u2014 yo'q. Sana kiritilsa, o'sha kun dam, keyingi dam kuni 14 kundan keyin, va shunday davom etadi.";
+      return;
+    }
+    const a = addDaysToKey(v, 14), b = addDaysToKey(v, 28);
+    hint.textContent = `${weekdayNameUz(v)} kunlari dam: ${ddmmyyyy(v)}, ${ddmmyyyy(a)}, ${ddmmyyyy(b)} \u2026 (har 2 haftada bir marta).`;
+  }
   function getRestDayChecks() {
     return [...document.querySelectorAll("#empRestDays .emp-rest-cb")].filter((cb) => cb.checked).map((cb) => Number(cb.value)).sort((a, b) => a - b);
   }
@@ -9748,6 +9786,11 @@ ${origLine}${reasonLine}` });
         document.getElementById("employeeModalError").textContent = "";
       });
     }
+    document.getElementById("empBiweeklyFrom").addEventListener("change", showBiweeklyHint);
+    document.getElementById("btnEmpBiweeklyClear").addEventListener("click", () => {
+      document.getElementById("empBiweeklyFrom").value = "";
+      showBiweeklyHint();
+    });
     document.getElementById("empPhotoInput").addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -9939,6 +9982,8 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
         document.getElementById("empWorkStart").value = "08:00";
         document.getElementById("empWorkEnd").value = "18:00";
         setRestDayChecks([2]);
+        document.getElementById("empBiweeklyFrom").value = "";
+        showBiweeklyHint();
         document.getElementById("empSalary").value = "";
         document.getElementById("empWorkDays").value = "26";
         document.getElementById("empWorkStart2").value = "";
@@ -9952,6 +9997,8 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
         document.getElementById("empWorkStart").value = schedule.workStart;
         document.getElementById("empWorkEnd").value = schedule.workEnd;
         setRestDayChecks(restDaysOf(schedule));
+        document.getElementById("empBiweeklyFrom").value = schedule.biweeklyRestFrom || "";
+        showBiweeklyHint();
         _weekdayOverrides = schedule.weekdayOverrides ? JSON.parse(JSON.stringify(schedule.weekdayOverrides)) : {};
         renderWeekdayOverrides();
         document.getElementById("empWorkStart2").value = schedule.workStart2 || "";
@@ -10030,6 +10077,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
       workEnd2: workEnd2 || null,
       weeklyRestDay: getRestDayChecks()[0] ?? REST_DAY_NONE,
       weeklyRestDays: getRestDayChecks(),
+      biweeklyRestFrom: document.getElementById("empBiweeklyFrom").value || null,
       // "|| 0" — bo'sh (ixtiyoriy) qoldirilgan maydon hech qachon NaN
       // bermaydi, shuning uchun xodimni saqlash/yaratish hech qachon shu
       // sabab bilan to'xtab qolmaydi.
@@ -13588,6 +13636,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 11, d: "2026-10-17", note: "Xodimga \"2 haftada 1 marta dam kuni\" belgilash qo'shildi (sana kiritiladi, har 14 kunda takrorlanadi)." },
     { n: 10, d: "2026-10-17", note: "Xodim oynasidagi har bir bo'lim alohida to'q qizil ramkada ko'rsatiladi." },
     { n: 9, d: "2026-10-17", note: "Yangi xodim oynasi: \"Login\" o'rniga \"Xodimning ismi\", Parol va Telefon maydonlari olib tashlandi." },
     { n: 8, d: "2026-10-17", note: "Chap menyu Shifoat'dagidek: ☰ tugma va logo olib tashlandi, \"Chiqish\" doim pastda to'liq ko'rinadi." },
@@ -13638,7 +13687,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 14:00";
+  var BUILD_STAMP = "2026-10-17 14:45";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
