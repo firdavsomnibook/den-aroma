@@ -197,6 +197,14 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
 .emp-box { border: 2px solid #991B1B; border-radius: 12px; padding: 12px 14px 0; margin-bottom: 14px; }
 .emp-box > .form-row:last-child { margin-bottom: 12px; }
 .form-row.emp-box { padding-bottom: 12px; }
+.bw-cal { flex: 1 1 100%; max-width: 320px; border: 1px solid var(--border-soft, #D4D8E9); border-radius: 12px; padding: 10px; background: #fff; }
+.bw-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-weight: 700; color: var(--deep-navy); }
+.bw-cal-head button { border: none; background: #F4F5FA; border-radius: 8px; width: 36px; height: 32px; font-size: 18px; cursor: pointer; }
+.bw-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.bw-cal-grid .wd { font-size: 11px; text-align: center; color: #5A6071; padding: 2px 0; }
+.bw-cal-grid button { padding: 9px 0; border: 1px solid transparent; border-radius: 8px; background: #F4F5FA; cursor: pointer; font-size: 13px; color: var(--deep-navy); }
+.bw-cal-grid button.sel { background: #006636; color: #fff; font-weight: 700; }
+.bw-cal-grid button.today { border-color: #006636; }
 .form-row label { font-size: 12px; color: #6B6F91; font-weight: 600; }
 .form-row input, .form-row select { padding: 8px 10px; border-radius: 8px; border: 1px solid #C9CCE6; font-size: 14px; }
 
@@ -1463,7 +1471,8 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
            takrorlanadi. -->
       <label style="margin-top:10px;">2 haftada 1 marta dam kuni (ixtiyoriy) &mdash; dam kunlaridan birining sanasi</label>
       <div class="weekday-ov-add">
-        <input type="date" id="empBiweeklyFrom" />
+        <input type="hidden" id="empBiweeklyFrom" /><button class="btn btn-secondary" type="button" id="btnBwPick">📅 Sanani tanlang</button>
+        <div class="bw-cal" id="empBwCal" style="display:none;"></div>
         <button class="btn btn-secondary" type="button" id="btnEmpBiweeklyClear">Tozalash</button>
       </div>
       <span class="muted" style="font-size:12px;" id="empBiweeklyHint">Bo'sh qoldirilsa &mdash; yo'q. Sana kiritilsa, o'sha kun dam, keyingi dam kuni 14 kundan keyin, va shunday davom etadi.</span>
@@ -9604,16 +9613,66 @@ ${origLine}${reasonLine}` });
       cb.checked = set.has(cb.value);
     });
   }
+  // 17.10.2026: 2 haftada 1 marta dam sanasi - telefonlarda sana maydoni
+  // buzilib qolgani uchun oddiy kalendar (kunni bosib tanlanadi). Qiymat
+  // YYYY-MM-DD ko'rinishida yashirin #empBiweeklyFrom maydonida saqlanadi.
+  var _bwView = null;
+  var BW_OYLAR = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+  function readBiweeklyKey() {
+    return document.getElementById("empBiweeklyFrom").value || "";
+  }
+  function setBiweeklyValue(v) {
+    const ok = /^(\d{4})-(\d{2})-(\d{2})$/.test(String(v || ""));
+    document.getElementById("empBiweeklyFrom").value = ok ? v : "";
+    const base = ok ? v : tashkentDateKey();
+    _bwView = { y: Number(base.slice(0, 4)), m: Number(base.slice(5, 7)) - 1 };
+    const cal = document.getElementById("empBwCal");
+    if (cal) { cal.style.display = "none"; cal.innerHTML = ""; }
+    document.getElementById("btnBwPick").textContent = ok ? `\u{1F4C5} ${ddmmyyyy(v)} (${weekdayNameUz(v)})` : "\u{1F4C5} Sanani tanlang";
+    showBiweeklyHint();
+  }
+  function renderBwCal() {
+    const cal = document.getElementById("empBwCal");
+    const sel = readBiweeklyKey();
+    const today = tashkentDateKey();
+    const { y, m } = _bwView;
+    const first = (new Date(Date.UTC(y, m, 1)).getUTCDay() + 6) % 7;
+    const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    cal.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "bw-cal-head";
+    const prev = document.createElement("button"); prev.type = "button"; prev.textContent = "\u2039";
+    const next = document.createElement("button"); next.type = "button"; next.textContent = "\u203A";
+    const title = document.createElement("span"); title.textContent = `${BW_OYLAR[m]} ${y}`;
+    prev.addEventListener("click", () => { _bwView = m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }; renderBwCal(); });
+    next.addEventListener("click", () => { _bwView = m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }; renderBwCal(); });
+    head.append(prev, title, next);
+    const grid = document.createElement("div");
+    grid.className = "bw-cal-grid";
+    ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"].forEach((w) => { const d = document.createElement("div"); d.className = "wd"; d.textContent = w; grid.appendChild(d); });
+    for (let i = 0; i < first; i++) grid.appendChild(document.createElement("div"));
+    for (let d = 1; d <= days; d++) {
+      const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = String(d);
+      if (key === sel) btn.classList.add("sel");
+      if (key === today) btn.classList.add("today");
+      btn.addEventListener("click", () => setBiweeklyValue(key));
+      grid.appendChild(btn);
+    }
+    cal.append(head, grid);
+  }
   function showBiweeklyHint() {
-    const v = document.getElementById("empBiweeklyFrom").value;
     const hint = document.getElementById("empBiweeklyHint");
     if (!hint) return;
-    if (!v) {
-      hint.textContent = "Bo'sh qoldirilsa \u2014 yo'q. Sana kiritilsa, o'sha kun dam, keyingi dam kuni 14 kundan keyin, va shunday davom etadi.";
+    const k = readBiweeklyKey();
+    if (!k) {
+      hint.textContent = "Bo'sh qoldirilsa \u2014 yo'q. Sana tanlansa, o'sha kun dam, keyingi dam kuni 14 kundan keyin, va shunday davom etadi.";
       return;
     }
-    const a = addDaysToKey(v, 14), b = addDaysToKey(v, 28);
-    hint.textContent = `${weekdayNameUz(v)} kunlari dam: ${ddmmyyyy(v)}, ${ddmmyyyy(a)}, ${ddmmyyyy(b)} \u2026 (har 2 haftada bir marta).`;
+    const a = addDaysToKey(k, 14), b = addDaysToKey(k, 28);
+    hint.textContent = `${weekdayNameUz(k)} kunlari dam: ${ddmmyyyy(k)}, ${ddmmyyyy(a)}, ${ddmmyyyy(b)} \u2026 (har 2 haftada bir marta).`;
   }
   function getRestDayChecks() {
     return [...document.querySelectorAll("#empRestDays .emp-rest-cb")].filter((cb) => cb.checked).map((cb) => Number(cb.value)).sort((a, b) => a - b);
@@ -9786,12 +9845,12 @@ ${origLine}${reasonLine}` });
         document.getElementById("employeeModalError").textContent = "";
       });
     }
-    document.getElementById("empBiweeklyFrom").addEventListener("change", showBiweeklyHint);
-    document.getElementById("empBiweeklyFrom").addEventListener("input", showBiweeklyHint);
-    document.getElementById("btnEmpBiweeklyClear").addEventListener("click", () => {
-      document.getElementById("empBiweeklyFrom").value = "";
-      showBiweeklyHint();
+    document.getElementById("btnBwPick").addEventListener("click", () => {
+      const cal = document.getElementById("empBwCal");
+      if (cal.style.display === "none") { if (!_bwView) setBiweeklyValue(readBiweeklyKey()); renderBwCal(); cal.style.display = "block"; }
+      else cal.style.display = "none";
     });
+    document.getElementById("btnEmpBiweeklyClear").addEventListener("click", () => setBiweeklyValue(""));
     document.getElementById("empPhotoInput").addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -9983,8 +10042,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
         document.getElementById("empWorkStart").value = "08:00";
         document.getElementById("empWorkEnd").value = "18:00";
         setRestDayChecks([2]);
-        document.getElementById("empBiweeklyFrom").value = "";
-        showBiweeklyHint();
+        setBiweeklyValue("");
         document.getElementById("empSalary").value = "";
         document.getElementById("empWorkDays").value = "26";
         document.getElementById("empWorkStart2").value = "";
@@ -9998,8 +10056,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
         document.getElementById("empWorkStart").value = schedule.workStart;
         document.getElementById("empWorkEnd").value = schedule.workEnd;
         setRestDayChecks(restDaysOf(schedule));
-        document.getElementById("empBiweeklyFrom").value = schedule.biweeklyRestFrom || "";
-        showBiweeklyHint();
+        setBiweeklyValue(schedule.biweeklyRestFrom || "");
         _weekdayOverrides = schedule.weekdayOverrides ? JSON.parse(JSON.stringify(schedule.weekdayOverrides)) : {};
         renderWeekdayOverrides();
         document.getElementById("empWorkStart2").value = schedule.workStart2 || "";
@@ -13649,6 +13706,8 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 15, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi endi kalendardan bosib tanlanadi." },
+    { n: 14, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi: Kun/Oy/Yil tanlov ro'yxatlari (telefonda sana buzilib, saqlanmay qolgan edi)." },
     { n: 13, d: "2026-10-17", note: "Xodim saqlashda kutilmagan xato bo'lsa, ekranda ko'rsatiladi (oldin jimgina to'xtardi)." },
     { n: 12, d: "2026-10-17", note: "2 haftada 1 marta dam: o'sha hafta kuni haftalik damda ham belgilansa, saqlashda ogohlantiradi." },
     { n: 11, d: "2026-10-17", note: "Xodimga \"2 haftada 1 marta dam kuni\" belgilash qo'shildi (sana kiritiladi, har 14 kunda takrorlanadi)." },
@@ -13702,7 +13761,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 15:20";
+  var BUILD_STAMP = "2026-10-17 16:05";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
