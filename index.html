@@ -10027,7 +10027,12 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
     saveBtn.textContent = "Saqlanmoqda\u2026";
     showBusy("Saqlanmoqda\u2026");
     try {
+      errorEl.textContent = "";
       await onSaveInner(errorEl, firstName);
+    } catch (err) {
+      // 17.10.2026: kutilmagan xato jimgina yutilib ketmasin - ekranga chiqsin.
+      console.error("Xodimni saqlashda kutilmagan xato:", err);
+      errorEl.textContent = "Saqlashda xato: " + String(err && err.message || err);
     } finally {
       hideBusy();
       saveBtn.disabled = false;
@@ -13644,6 +13649,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 13, d: "2026-10-17", note: "Xodim saqlashda kutilmagan xato bo'lsa, ekranda ko'rsatiladi (oldin jimgina to'xtardi)." },
     { n: 12, d: "2026-10-17", note: "2 haftada 1 marta dam: o'sha hafta kuni haftalik damda ham belgilansa, saqlashda ogohlantiradi." },
     { n: 11, d: "2026-10-17", note: "Xodimga \"2 haftada 1 marta dam kuni\" belgilash qo'shildi (sana kiritiladi, har 14 kunda takrorlanadi)." },
     { n: 10, d: "2026-10-17", note: "Xodim oynasidagi har bir bo'lim alohida to'q qizil ramkada ko'rsatiladi." },
@@ -13696,7 +13702,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 15:00";
+  var BUILD_STAMP = "2026-10-17 15:20";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
