@@ -193,6 +193,10 @@ table.data-table th { background: #F0F1F9; color: var(--deep-navy); padding: 8px
 table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-size: 13px; }
 
 .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+/* 17.10.2026 so'rovi: xodim oynasidagi har bir bo'lim alohida to'q qizil ramkada. */
+.emp-box { border: 2px solid #991B1B; border-radius: 12px; padding: 12px 14px 0; margin-bottom: 14px; }
+.emp-box > .form-row:last-child { margin-bottom: 12px; }
+.form-row.emp-box { padding-bottom: 12px; }
 .form-row label { font-size: 12px; color: #6B6F91; font-weight: 600; }
 .form-row input, .form-row select { padding: 8px 10px; border-radius: 8px; border: 1px solid #C9CCE6; font-size: 14px; }
 
@@ -1376,11 +1380,14 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
 <div class="modal-overlay" id="employeeModal">
   <div class="modal-box">
     <h3 id="employeeModalTitle">Yangi xodim</h3>
+    <div class="emp-box">
     <div class="form-row">
       <label>Xodim rasmi (ixtiyoriy) — faqat admin kirita oladi</label>
       <img id="empPhotoPreview" style="display:none; width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:6px;" />
       <input type="file" accept="image/*" id="empPhotoInput" />
     </div>
+    </div>
+    <div class="emp-box">
     <div class="form-row"><label>Xodimning ismi</label><input type="text" id="empFirstName" /></div>
     <!-- 17.10.2026 so'rovi: xodimga parol berilmaydi (parol faqat administrator
          yaratishda). Maydon kod uchun qoladi, lekin ko'rinmaydi. -->
@@ -1397,12 +1404,15 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     <!-- 13.09.2026: xodim qaysi filialda ishlaydi -->
     <div class="form-row" id="empBranchRow"><label>Filial</label><select id="empBranch"></select></div>
     <div class="form-row" style="display:none;"><label>Telefon (ixtiyoriy)</label><input type="text" id="empPhone" /></div>
+    </div>
+    <div class="emp-box">
     <div class="form-row"><label>Ish boshlanish vaqti</label><input type="time" id="empWorkStart" value="08:00" /></div>
     <div class="form-row"><label>Ish tugash vaqti</label><input type="time" id="empWorkEnd" value="18:00" /></div>
+    </div>
     <!-- 15.09.2026 so'rovi (Xondamir): bo'linadigan ish kuni — 08:00-12:00
          ishlaydi, institutga boradi, 18:00 da qaytib 23:59 gacha ishlaydi.
          To'ldirilsa, o'sha xodim kunda 4 marta yuz skanerlaydi. -->
-    <div class="form-row">
+    <div class="form-row emp-box">
       <label>Ikkinchi ish vaqti (ixtiyoriy) — kunda ikkinchi marta ishga kelsa</label>
       <div class="weekday-ov-add">
         <span class="ov-pair"><input type="time" id="empWorkStart2" /><span>&mdash;</span><input type="time" id="empWorkEnd2" /></span>
@@ -1412,7 +1422,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     </div>
     <!-- 13.09.2026: haftaning ayrim kunlarida boshqa ish vaqti
          (masalan: doim 14:00-24:00, lekin yakshanba 10:00-24:00) -->
-    <div class="form-row">
+    <div class="form-row emp-box">
       <label>Haftalik istisno (ixtiyoriy) — ayrim kunda boshqa vaqt</label>
       <div class="weekday-ov-add">
         <select id="empOvDay">
@@ -1433,7 +1443,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       </div>
       <div class="weekday-ov-list" id="empOvList"></div>
     </div>
-    <div class="form-row"><label>Haftalik dam kunlari</label>
+    <div class="form-row emp-box"><label>Haftalik dam kunlari</label>
       <!-- 15.10.2026 so'rovi: bir nechta kunni dam kuni qilib belgilash
            mumkin bo'lsin. Hech biri tanlanmasa - dam kuni yo'q (har kuni
            ishlaydi). Eski bitta kunlik yozuvlar ham shu yerda to'g'ri
@@ -1459,11 +1469,11 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
          ishlaydi va dastur uning SHAXSIY telefoniga o'rnatiladi. Bunday
          xodim uchun joylashuv sharti qat'iyroq bo'lishi kerak — qarang
          geofenceService.js → evaluateStrictLocation(). -->
-    <div class="form-row" id="empStrictLocationRow">
+    <div class="form-row emp-box" id="empStrictLocationRow">
       <label><input type="checkbox" id="empStrictLocation" /> Qattiq joylashuv nazorati (shaxsiy telefon uchun)</label>
       <div class="muted" style="margin-top:4px;">Yoqilsa: joylashuv aniqlanmasa yoki GPS aniqligi yomon bo'lsa, yoxud xodim o'z ish joyida bo'lmasa — kelish/ketish belgilanmaydi.</div>
     </div>
-    <div class="form-row"><label><input type="checkbox" id="empActive" checked /> Faol</label></div>
+    <div class="form-row emp-box"><label><input type="checkbox" id="empActive" checked /> Faol</label></div>
     <p class="error-text" id="employeeModalError"></p>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-secondary" id="employeeModalCancel">Bekor qilish</button>
@@ -13578,6 +13588,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 10, d: "2026-10-17", note: "Xodim oynasidagi har bir bo'lim alohida to'q qizil ramkada ko'rsatiladi." },
     { n: 9, d: "2026-10-17", note: "Yangi xodim oynasi: \"Login\" o'rniga \"Xodimning ismi\", Parol va Telefon maydonlari olib tashlandi." },
     { n: 8, d: "2026-10-17", note: "Chap menyu Shifoat'dagidek: ☰ tugma va logo olib tashlandi, \"Chiqish\" doim pastda to'liq ko'rinadi." },
     { n: 7, d: "2026-10-17", note: "Sidebar collapse/expand qilish imkoniyati qo'shildi (☰ tugma)." },
@@ -13627,7 +13638,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 13:55";
+  var BUILD_STAMP = "2026-10-17 14:00";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
