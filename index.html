@@ -832,7 +832,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       </div>
       <div class="emp-stats" id="employeeStats"></div>
       <div style="overflow-x:auto;"><table class="data-table" id="employeesTable">
-        <thead><tr><th>Rasmi</th><th>Login</th><th>Lavozim</th><th>Jinsi</th><th>Filial</th><th>Grafik</th><th>Faol</th><th>Yuz</th><th id="thEmployeePassword" style="display:none;">Parol</th><th></th></tr></thead>
+        <thead><tr><th>Rasmi</th><th>Ismi</th><th>Lavozim</th><th>Jinsi</th><th>Filial</th><th>Grafik</th><th>Faol</th><th>Yuz</th><th id="thEmployeePassword" style="display:none;">Parol</th><th></th></tr></thead>
         <tbody></tbody>
       </table></div>
     </section>
@@ -1381,8 +1381,10 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       <img id="empPhotoPreview" style="display:none; width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:6px;" />
       <input type="file" accept="image/*" id="empPhotoInput" />
     </div>
-    <div class="form-row"><label>Login</label><input type="text" id="empFirstName" /></div>
-    <div class="form-row"><label>Parol</label><input type="text" id="empPassword" /></div>
+    <div class="form-row"><label>Xodimning ismi</label><input type="text" id="empFirstName" /></div>
+    <!-- 17.10.2026 so'rovi: xodimga parol berilmaydi (parol faqat administrator
+         yaratishda). Maydon kod uchun qoladi, lekin ko'rinmaydi. -->
+    <div class="form-row" style="display:none;"><label>Parol</label><input type="text" id="empPassword" /></div>
     <div class="form-row"><label>Lavozim (ixtiyoriy)</label><input type="text" id="empPosition" placeholder="masalan: Hamshira, Shifokor" /></div>
     <!-- 16.09.2026: jinsi - Xodimlar bo'limidagi Jami/Erkak/Ayol hisobi uchun -->
     <div class="form-row"><label>Jinsi</label>
@@ -1394,7 +1396,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     </div>
     <!-- 13.09.2026: xodim qaysi filialda ishlaydi -->
     <div class="form-row" id="empBranchRow"><label>Filial</label><select id="empBranch"></select></div>
-    <div class="form-row"><label>Telefon (ixtiyoriy)</label><input type="text" id="empPhone" /></div>
+    <div class="form-row" style="display:none;"><label>Telefon (ixtiyoriy)</label><input type="text" id="empPhone" /></div>
     <div class="form-row"><label>Ish boshlanish vaqti</label><input type="time" id="empWorkStart" value="08:00" /></div>
     <div class="form-row"><label>Ish tugash vaqti</label><input type="time" id="empWorkEnd" value="18:00" /></div>
     <!-- 15.09.2026 so'rovi (Xondamir): bo'linadigan ish kuni — 08:00-12:00
@@ -2246,7 +2248,10 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       for (const d of snap.docs) {
         const data = d.data();
         if (!data.isActive) continue;
-        if (!data.password) return { id: d.id, ...data };
+        // 17.10.2026: paroli yo'q xodim login oynasidan kira olmaydi —
+        // aks holda istalgan odam ismini yozib uni "keldi" qilardi.
+        // Bunday xodim faqat yuz orqali belgilanadi.
+        if (!data.password) continue;
         if (password && data.password === password) return { id: d.id, ...data };
       }
       return null;
@@ -3567,7 +3572,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     const employees = await getAll("employees");
     const employee = employees.find((e) => e.isActive && e.firstName === trimmed) || null;
     if (!employee) return null;
-    if (!employee.password) return employee;
+    if (!employee.password) return null;
     if (!password) return null;
     return employee.password === password ? employee : null;
   }
@@ -9955,7 +9960,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
     const errorEl = document.getElementById("employeeModalError");
     const firstName = document.getElementById("empFirstName").value.trim();
     if (!firstName) {
-      errorEl.textContent = "Login kiritilishi shart.";
+      errorEl.textContent = "Xodimning ismi kiritilishi shart.";
       return;
     }
     const saveBtn = document.getElementById("employeeModalSave");
@@ -9976,7 +9981,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
     try {
       const taken = await _db3.isLoginTaken(firstName, _editingId);
       if (taken) {
-        errorEl.textContent = "Bu login band \u2014 boshqa xodim yoki admin allaqachon shu login bilan mavjud.";
+        errorEl.textContent = "Bu ism band \u2014 shu ismli xodim yoki admin allaqachon bor. Ajratish uchun familiya yoki raqam qo'shing (masalan: Nilufar 2).";
         return;
       }
     } catch (err) {
@@ -13573,6 +13578,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 9, d: "2026-10-17", note: "Yangi xodim oynasi: \"Login\" o'rniga \"Xodimning ismi\", Parol va Telefon maydonlari olib tashlandi." },
     { n: 8, d: "2026-10-17", note: "Chap menyu Shifoat'dagidek: ☰ tugma va logo olib tashlandi, \"Chiqish\" doim pastda to'liq ko'rinadi." },
     { n: 7, d: "2026-10-17", note: "Sidebar collapse/expand qilish imkoniyati qo'shildi (☰ tugma)." },
     { n: 6, d: "2026-10-17", note: "Administratorlar panelining barcha elementlari ko'rinadigan qilindi (scroll yo'q)." },
@@ -13621,7 +13627,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 11:15";
+  var BUILD_STAMP = "2026-10-17 13:55";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
