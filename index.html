@@ -140,8 +140,8 @@ html, body {
 .screen.active { display: flex; flex-direction: column; height: 100%; }
 
 /* ---------- Admin panel (admin.html) ---------- */
-.admin-root { display: flex; height: 100vh; background: var(--bg-soft); }
-.admin-sidebar { width: 220px; max-width: 25%; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; overflow-y: auto; }
+.admin-root { display: flex; min-height: 100vh; background: var(--bg-soft); }
+.admin-sidebar { width: 220px; max-width: 25%; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 .admin-sidebar .sidebar-brand { color: var(--white); font-size: 20px; font-weight: 800; margin: 0; }
 .admin-sidebar .sidebar-since { color: #A9ADD6; font-size: 11px; margin: 0 0 16px; }
 .admin-sidebar .sidebar-user { color: #D7D9EE; font-size: 12px; margin-bottom: 16px; }
@@ -13567,6 +13567,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 6, d: "2026-10-17", note: "Administratorlar panelining barcha elementlari ko'rinadigan qilindi (scroll yo'q)." },
     { n: 5, d: "2026-10-17", note: "Adminstratorlar paneli o'ng tomonga cho'zib ketmasligi tuzatildi." },
     { n: 4, d: "2026-10-17", note: "\"admin\" hisobi dastur egasi qilindi: Xavfsizlik va Maosh bo'limlari ochiladi." },
     { n: 3, d: "2026-10-15", note: "Xodim jadvalida bir nechta dam kunini belgilash mumkin." },
@@ -13612,7 +13613,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 10:25 UTC";
+  var BUILD_STAMP = "2026-10-17 10:31 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
