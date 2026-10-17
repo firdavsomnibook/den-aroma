@@ -9787,6 +9787,7 @@ ${origLine}${reasonLine}` });
       });
     }
     document.getElementById("empBiweeklyFrom").addEventListener("change", showBiweeklyHint);
+    document.getElementById("empBiweeklyFrom").addEventListener("input", showBiweeklyHint);
     document.getElementById("btnEmpBiweeklyClear").addEventListener("click", () => {
       document.getElementById("empBiweeklyFrom").value = "";
       showBiweeklyHint();
@@ -10065,6 +10066,13 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
     const workEnd2 = document.getElementById("empWorkEnd2").value || "";
     const workStartValue = document.getElementById("empWorkStart").value;
     const workEndValue = document.getElementById("empWorkEnd").value;
+    // 17.10.2026: 2 haftada 1 marta dam sanasi bilan o'sha hafta kuni "haftalik dam"
+    // sifatida ham belgilansa, u har hafta dam bo'lib qoladi - bunga yo'l qo'ymaymiz.
+    const biweeklyDate = document.getElementById("empBiweeklyFrom").value;
+    if (biweeklyDate && getRestDayChecks().includes(weekdayIndexMonday0(biweeklyDate))) {
+      errorEl.textContent = `"${weekdayNameUz(biweeklyDate)}" haftalik dam kunlarida ham belgilangan \u2014 u holda har hafta dam bo'ladi. 2 haftada 1 marta dam kerak bo'lsa, "Haftalik dam kunlari"dan ${weekdayNameUz(biweeklyDate)}ni olib tashlang.`;
+      return;
+    }
     const shiftProblem = validateShiftPair(workStartValue, workEndValue, workStart2, workEnd2, "");
     if (shiftProblem) {
       errorEl.textContent = shiftProblem;
@@ -13636,6 +13644,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 12, d: "2026-10-17", note: "2 haftada 1 marta dam: o'sha hafta kuni haftalik damda ham belgilansa, saqlashda ogohlantiradi." },
     { n: 11, d: "2026-10-17", note: "Xodimga \"2 haftada 1 marta dam kuni\" belgilash qo'shildi (sana kiritiladi, har 14 kunda takrorlanadi)." },
     { n: 10, d: "2026-10-17", note: "Xodim oynasidagi har bir bo'lim alohida to'q qizil ramkada ko'rsatiladi." },
     { n: 9, d: "2026-10-17", note: "Yangi xodim oynasi: \"Login\" o'rniga \"Xodimning ismi\", Parol va Telefon maydonlari olib tashlandi." },
@@ -13687,7 +13696,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 14:45";
+  var BUILD_STAMP = "2026-10-17 15:00";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
