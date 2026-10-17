@@ -141,13 +141,14 @@ html, body {
 
 /* ---------- Admin panel (admin.html) ---------- */
 .admin-root { display: flex; height: 100vh; background: var(--bg-soft); }
-.admin-sidebar { width: 230px; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.admin-sidebar { width: 220px; max-width: 25%; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; overflow-y: auto; }
 .admin-sidebar .sidebar-brand { color: var(--white); font-size: 20px; font-weight: 800; margin: 0; }
 .admin-sidebar .sidebar-since { color: #A9ADD6; font-size: 11px; margin: 0 0 16px; }
 .admin-sidebar .sidebar-user { color: #D7D9EE; font-size: 12px; margin-bottom: 16px; }
 .nav-button {
   background: transparent; color: #D7D9EE; text-align: left; padding: 12px 14px; border: none;
-  font-size: 14px; border-radius: 10px; cursor: pointer; width: 100%;
+  font-size: 14px; border-radius: 10px; cursor: pointer; width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
 }
 .nav-button:hover { background: var(--navy); color: var(--white); }
 .nav-button.active { background: var(--shifoat-red); color: var(--on-brand, #fff); font-weight: 700; }
@@ -13566,6 +13567,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 5, d: "2026-10-17", note: "Adminstratorlar paneli o'ng tomonga cho'zib ketmasligi tuzatildi." },
     { n: 4, d: "2026-10-17", note: "\"admin\" hisobi dastur egasi qilindi: Xavfsizlik va Maosh bo'limlari ochiladi." },
     { n: 3, d: "2026-10-15", note: "Xodim jadvalida bir nechta dam kunini belgilash mumkin." },
     { n: 2, d: "2026-10-14", note: "Pastda versiya raqami ko'rinadigan bo'ldi." },
@@ -13610,7 +13612,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 05:20 UTC";
+  var BUILD_STAMP = "2026-10-17 10:25 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
