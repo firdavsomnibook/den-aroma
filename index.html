@@ -398,6 +398,9 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
   padding: 7px 8px; border-radius: 8px; border: 1px solid #C9CCE6; font-size: 13px;
 }
 .weekday-ov-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rest-days-group { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 6px 0; }
+.rest-day-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.rest-day-opt input { width: auto; margin: 0; }
 .weekday-ov-chip {
   display: inline-flex; align-items: center; gap: 7px; background: #EEF0FB;
   color: var(--deep-navy); border-radius: 999px; padding: 4px 6px 4px 11px;
@@ -1421,17 +1424,21 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       </div>
       <div class="weekday-ov-list" id="empOvList"></div>
     </div>
-    <div class="form-row"><label>Haftalik dam kuni</label>
-      <select id="empRestDay">
-        <!-- 18.09.2026 so'rovi: sinov muddatidagi xodimga bir hafta yoki
-             10 kun dam kuni berilmasligi mumkin; ba'zi xodim esa umuman
-             dam olmasligi mumkin. Shuning uchun dam kuni endi majburiy
-             emas. Qaytarish ham shu yerdan - kerakli kun tanlanadi. -->
-        <option value="-1">&mdash; Dam kuni yo'q (har kuni ishlaydi)</option>
-        <option value="0">Dushanba</option><option value="1">Seshanba</option>
-        <option value="2" selected>Chorshanba</option><option value="3">Payshanba</option>
-        <option value="4">Juma</option><option value="5">Shanba</option><option value="6">Yakshanba</option>
-      </select>
+    <div class="form-row"><label>Haftalik dam kunlari</label>
+      <!-- 15.10.2026 so'rovi: bir nechta kunni dam kuni qilib belgilash
+           mumkin bo'lsin. Hech biri tanlanmasa - dam kuni yo'q (har kuni
+           ishlaydi). Eski bitta kunlik yozuvlar ham shu yerda to'g'ri
+           ko'rinadi (qarang restDaysOf). -->
+      <div class="rest-days-group" id="empRestDays">
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="0" /> Dushanba</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="1" /> Seshanba</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="2" /> Chorshanba</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="3" /> Payshanba</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="4" /> Juma</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="5" /> Shanba</label>
+        <label class="rest-day-opt"><input type="checkbox" class="emp-rest-cb" value="6" /> Yakshanba</label>
+      </div>
+      <span class="muted" style="font-size:12px;">Hech biri tanlanmasa &mdash; dam kuni yo'q (har kuni ishlaydi).</span>
     </div>
     <!-- 05.09.2026 so'rovi: maosh endi bu yerda SO'RALMAYDI — oy oxirida,
          aniq bo'lgach, "Maosh" bo'limida kiritiladi. Maydonlar butunlay
@@ -2296,6 +2303,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
         workStart: fields.workStart,
         workEnd: fields.workEnd,
         weeklyRestDay: fields.weeklyRestDay,
+        weeklyRestDays: fields.weeklyRestDays || null,
         avgMonthlySalary: fields.avgMonthlySalary,
         workDaysPerMonth: fields.workDaysPerMonth,
         // 13.09.2026: haftaning ayrim kunlari uchun boshqa ish vaqti —
@@ -3609,6 +3617,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       workStart: fields.workStart,
       workEnd: fields.workEnd,
       weeklyRestDay: fields.weeklyRestDay,
+      weeklyRestDays: fields.weeklyRestDays || null,
       // 13.09.2026 so'rovi: "bitta xodim doim 14:00-24:00 ishlaydi, lekin
       // YAKSHANBA kunlari 10:00-24:00". Ya'ni haftaning ayrim kunlari
       // uchun boshqa vaqt. Bu yerda { "6": { workStart, workEnd } }
@@ -4794,8 +4803,18 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     return 0;
   }
   var REST_DAY_NONE = -1;
+  // 15.10.2026: bir nechta dam kuni. Yangi yozuvlarda weeklyRestDays (massiv),
+  // eskilarida faqat weeklyRestDay (bitta son yoki -1) bor - ikkalasi ham ishlaydi.
+  function restDaysOf(schedule) {
+    if (!schedule) return [];
+    if (Array.isArray(schedule.weeklyRestDays)) {
+      return [...new Set(schedule.weeklyRestDays.map(Number).filter((n) => n >= 0 && n <= 6))].sort((a, b) => a - b);
+    }
+    const d = schedule.weeklyRestDay;
+    return d == null || d === REST_DAY_NONE ? [] : [Number(d)];
+  }
   function hasWeeklyRest(schedule) {
-    return !!schedule && schedule.weeklyRestDay !== REST_DAY_NONE && schedule.weeklyRestDay != null;
+    return restDaysOf(schedule).length > 0;
   }
   function applyWeekdayOverride(version, dateKey) {
     if (!version || !version.weekdayOverrides) return version;
@@ -4822,8 +4841,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
   function computeDayStatusFromSchedule(schedule, dateKey) {
     if (!schedule) return DAY_STATUS_WORK;
     const weekday = weekdayIndexMonday0(dateKey);
-    if (schedule.weeklyRestDay === REST_DAY_NONE) return DAY_STATUS_WORK;
-    return weekday === schedule.weeklyRestDay ? DAY_STATUS_REST : DAY_STATUS_WORK;
+    return restDaysOf(schedule).includes(weekday) ? DAY_STATUS_REST : DAY_STATUS_WORK;
   }
   function resolveDayStatusSync(explicitStatus, scheduleHistory, dateKey) {
     if (explicitStatus) return explicitStatus;
@@ -6008,7 +6026,7 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
     // yaratilganda ptichka ataylab belgilansa yoki admin11/M.Ali bo'lsa.
     payroll_panel: "Maosh paneli"
   };
-  var ADMIN_DELETE_OWNER_LOGINS = ["admin11", "M.Ali"];
+  var ADMIN_DELETE_OWNER_LOGINS = ["admin11", "M.Ali", "admin"];
   function isDeleteOwnerLogin(username) {
     const name = String(username || "").trim().toLowerCase();
     return ADMIN_DELETE_OWNER_LOGINS.some((owner) => owner.toLowerCase() === name);
@@ -9151,6 +9169,7 @@ ${origLine}${reasonLine}` });
       workStart: fields.workStart,
       workEnd: fields.workEnd,
       weeklyRestDay: fields.weeklyRestDay,
+      weeklyRestDays: fields.weeklyRestDays || null,
       weekdayOverrides: fields.weekdayOverrides || null,
       // 15.09.2026: ikkinchi ish oralig'i (bo'linadigan ish kuni).
       workStart2: fields.workStart2 || null,
@@ -9179,7 +9198,7 @@ ${origLine}${reasonLine}` });
       scheduleFields ? db2.getCurrentSchedule(employeeId, todayKey) : Promise.resolve(null)
     ]);
     if (scheduleFields) {
-      const changed = !current || current.workStart !== scheduleFields.workStart || current.workEnd !== scheduleFields.workEnd || current.weeklyRestDay !== scheduleFields.weeklyRestDay || current.avgMonthlySalary !== scheduleFields.avgMonthlySalary || current.workDaysPerMonth !== scheduleFields.workDaysPerMonth || // 13.09.2026: haftalik istisnolar o'zgargan bo'lsa ham yangi
+      const changed = !current || current.workStart !== scheduleFields.workStart || current.workEnd !== scheduleFields.workEnd || JSON.stringify(restDaysOf(current)) !== JSON.stringify(restDaysOf(scheduleFields)) || current.avgMonthlySalary !== scheduleFields.avgMonthlySalary || current.workDaysPerMonth !== scheduleFields.workDaysPerMonth || // 13.09.2026: haftalik istisnolar o'zgargan bo'lsa ham yangi
       // versiya yozilishi kerak (JSON.stringify — tartibi bir xil
       // bo'lgani uchun ishonchli: ikkalasi ham shu yerda yasaladi).
       JSON.stringify(current.weekdayOverrides || null) !== JSON.stringify(scheduleFields.weekdayOverrides || null) || // 15.09.2026: ikkinchi smena qo'shilgan/o'chirilgan/o'zgargan bo'lsa
@@ -9195,7 +9214,7 @@ ${origLine}${reasonLine}` });
           "SCHEDULE_CHANGED",
           "employee",
           employeeId,
-          `from=${todayKey} ${scheduleFields.workStart}-${scheduleFields.workEnd} rest_day=${scheduleFields.weeklyRestDay}`
+          `from=${todayKey} ${scheduleFields.workStart}-${scheduleFields.workEnd} rest_days=${restDaysOf(scheduleFields).join(",") || "yo'q"}`
         );
       }
     }
@@ -9529,6 +9548,15 @@ ${origLine}${reasonLine}` });
       hideBusy();
       saveBtn.disabled = false;
     }
+  }
+  function setRestDayChecks(days) {
+    const set = new Set((days || []).map(String));
+    document.querySelectorAll("#empRestDays .emp-rest-cb").forEach((cb) => {
+      cb.checked = set.has(cb.value);
+    });
+  }
+  function getRestDayChecks() {
+    return [...document.querySelectorAll("#empRestDays .emp-rest-cb")].filter((cb) => cb.checked).map((cb) => Number(cb.value)).sort((a, b) => a - b);
   }
   function renderWeekdayOverrides() {
     const box = document.getElementById("empOvList");
@@ -9888,7 +9916,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
       if (!employee) {
         document.getElementById("empWorkStart").value = "08:00";
         document.getElementById("empWorkEnd").value = "18:00";
-        document.getElementById("empRestDay").value = "2";
+        setRestDayChecks([2]);
         document.getElementById("empSalary").value = "";
         document.getElementById("empWorkDays").value = "26";
         document.getElementById("empWorkStart2").value = "";
@@ -9901,7 +9929,7 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
       if (schedule) {
         document.getElementById("empWorkStart").value = schedule.workStart;
         document.getElementById("empWorkEnd").value = schedule.workEnd;
-        document.getElementById("empRestDay").value = String(schedule.weeklyRestDay);
+        setRestDayChecks(restDaysOf(schedule));
         _weekdayOverrides = schedule.weekdayOverrides ? JSON.parse(JSON.stringify(schedule.weekdayOverrides)) : {};
         renderWeekdayOverrides();
         document.getElementById("empWorkStart2").value = schedule.workStart2 || "";
@@ -9978,7 +10006,8 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
       workEnd: workEndValue,
       workStart2: workStart2 || null,
       workEnd2: workEnd2 || null,
-      weeklyRestDay: Number(document.getElementById("empRestDay").value),
+      weeklyRestDay: getRestDayChecks()[0] ?? REST_DAY_NONE,
+      weeklyRestDays: getRestDayChecks(),
       // "|| 0" — bo'sh (ixtiyoriy) qoldirilgan maydon hech qachon NaN
       // bermaydi, shuning uchun xodimni saqlash/yaratish hech qachon shu
       // sabab bilan to'xtab qolmaydi.
@@ -13537,6 +13566,8 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 4, d: "2026-10-17", note: "\"admin\" hisobi dastur egasi qilindi: Xavfsizlik va Maosh bo'limlari ochiladi." },
+    { n: 3, d: "2026-10-15", note: "Xodim jadvalida bir nechta dam kunini belgilash mumkin." },
     { n: 2, d: "2026-10-14", note: "Pastda versiya raqami ko'rinadigan bo'ldi." },
     { n: 1, d: "2026-10-10", note: "\"OK, yangilash\" tugmasi 3 martadan keyin ishlamay qolishi tuzatildi." }
   ];
@@ -13579,7 +13610,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-14 06:00 UTC";
+  var BUILD_STAMP = "2026-10-17 05:20 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
