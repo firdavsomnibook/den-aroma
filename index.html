@@ -141,15 +141,23 @@ html, body {
 
 /* ---------- Admin panel (admin.html) ---------- */
 .admin-root { display: flex; min-height: 100vh; background: var(--bg-soft); }
-.admin-sidebar { width: 220px; max-width: 25%; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-.admin-sidebar .sidebar-brand { color: var(--white); font-size: 20px; font-weight: 800; margin: 0; }
+.admin-sidebar { width: 220px; max-width: 25%; background: var(--deep-navy); padding: 24px 18px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; transition: width 0.3s ease, padding 0.3s ease; }
+.admin-sidebar.collapsed { width: 80px; padding: 16px 8px; }
+.admin-sidebar.collapsed .sidebar-brand { display: none; }
+.admin-sidebar.collapsed .sidebar-since { display: none; }
+.admin-sidebar.collapsed .sidebar-user { display: none; }
+.admin-sidebar.collapsed .nav-button span { display: none; }
+.admin-sidebar.collapsed #btnToggleSidebar { width: 100%; }
+.admin-sidebar .sidebar-brand { color: var(--white); font-size: 16px; font-weight: 700; margin: 0; white-space: nowrap; }
 .admin-sidebar .sidebar-since { color: #A9ADD6; font-size: 11px; margin: 0 0 16px; }
 .admin-sidebar .sidebar-user { color: #D7D9EE; font-size: 12px; margin-bottom: 16px; }
 .nav-button {
   background: transparent; color: #D7D9EE; text-align: left; padding: 12px 14px; border: none;
   font-size: 14px; border-radius: 10px; cursor: pointer; width: 100%; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
+  text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; justify-content: center;
 }
+.admin-sidebar:not(.collapsed) .nav-button { justify-content: flex-start; }
+.nav-button span { display: inline; }
 .nav-button:hover { background: var(--navy); color: var(--white); }
 .nav-button.active { background: var(--shifoat-red); color: var(--on-brand, #fff); font-weight: 700; }
 .nav-spacer { flex: 1; }
@@ -768,13 +776,14 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
 
 <div class="admin-root" id="adminRoot" style="display:none;">
   <aside class="admin-sidebar">
+    <button class="nav-button" id="btnToggleSidebar" style="width:100%; padding:8px; font-size:18px; margin-bottom:8px;" title="Sidebar">☰</button>
     <img data-brand-logo alt="" style="height:64px; width:64px; border-radius:10px; object-fit:cover; display:none; margin:0 0 8px;" />
     <p class="sidebar-brand">Den Aroma</p>
     <p class="sidebar-since"></p>
     <p class="sidebar-user" id="sidebarUser"></p>
     <nav id="adminNav"></nav>
     <div class="nav-spacer"></div>
-    <button class="nav-button" id="btnLogout">Chiqish</button>
+    <button class="nav-button" id="btnLogout"><span>Chiqish</span></button>
   </aside>
 
   <main class="admin-content">
@@ -13392,6 +13401,19 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
         window.location.reload();
       });
     }
+    const toggleBtn = document.getElementById("btnToggleSidebar");
+    if (!toggleBtn.dataset.wired) {
+      toggleBtn.dataset.wired = "1";
+      toggleBtn.addEventListener("click", () => {
+        const sidebar = document.querySelector(".admin-sidebar");
+        sidebar.classList.toggle("collapsed");
+        localStorage.setItem("shifoat_sidebar_collapsed", sidebar.classList.contains("collapsed") ? "1" : "0");
+      });
+      const sidebar = document.querySelector(".admin-sidebar");
+      if (localStorage.getItem("shifoat_sidebar_collapsed") === "1") {
+        sidebar.classList.add("collapsed");
+      }
+    }
     const sectionChecks = await Promise.all(
       SECTIONS.map((section) => {
         if (section.customCheck) return section.customCheck(db2, user);
@@ -13404,7 +13426,9 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
     visibleSections.forEach((section, index) => {
       const button = document.createElement("button");
       button.className = "nav-button" + (index === 0 ? " active" : "");
-      button.textContent = section.title;
+      const span = document.createElement("span");
+      span.textContent = section.title;
+      button.appendChild(span);
       button.addEventListener("click", () => activateSection(section.key));
       button.dataset.sectionKey = section.key;
       nav.appendChild(button);
@@ -13567,6 +13591,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 7, d: "2026-10-17", note: "Sidebar collapse/expand qilish imkoniyati qo'shildi (☰ tugma)." },
     { n: 6, d: "2026-10-17", note: "Administratorlar panelining barcha elementlari ko'rinadigan qilindi (scroll yo'q)." },
     { n: 5, d: "2026-10-17", note: "Adminstratorlar paneli o'ng tomonga cho'zib ketmasligi tuzatildi." },
     { n: 4, d: "2026-10-17", note: "\"admin\" hisobi dastur egasi qilindi: Xavfsizlik va Maosh bo'limlari ochiladi." },
@@ -13613,7 +13638,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 10:31 UTC";
+  var BUILD_STAMP = "2026-10-17 10:51 UTC";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
