@@ -97,6 +97,14 @@ html, body {
 .bf-kiosk-table td:first-child { width: 52px; }
 .bf-kiosk-table td:last-child { width: 38%; }
 .bf-kiosk-sub { display: block; font-size: 12px; color: #777; }
+.bf-totals { display: flex; gap: 12px; margin: 4px 0 12px; }
+.bf-totals > div { flex: 1; background: #fff; border-radius: 12px; padding: 10px 8px; text-align: center; border: 1px solid rgba(0,0,0,.08); }
+.bf-lbl { display: block; font-size: 18px; font-weight: 900; letter-spacing: .5px; color: #111; }
+.bf-val { display: block; font-size: 22px; font-weight: 800; margin-top: 4px; }
+.bf-val.fine { color: #C62828; }
+.bf-val.bonus { color: #1B7F3B; }
+.big-button.result-close-button { flex: 0 0 auto; width: 100%; max-width: 640px; height: auto; min-height: 0; margin: 16px auto 0; background: var(--deep-navy); color: #fff; font-size: 20px; padding: 16px; }
+.praise-box { margin-top: 12px; padding: 14px 12px; border-radius: 14px; background: #FFF8E1; border: 2px solid #C9A227; font-size: 19px; font-weight: 700; color: #4E342E; text-align: center; line-height: 1.45; }
 .bf-kiosk-table td { padding: 6px 6px; border-bottom: 1px solid rgba(0,0,0,.08); vertical-align: top; }
 .sub-greeting { font-size: 19px; color: var(--navy); margin: 0; }
 
@@ -748,6 +756,8 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
           <p class="result-badge" id="resultBadge"></p>
           <div id="resultExtra" style="display:none;"></div>
         </div>
+        <!-- 19.10.2026 so'rovi: bonus/jarima oynasini yopish - bosh oynaga qaytadi. -->
+        <button class="big-button result-close-button" id="btnResultClose" style="display:none;">YOPISH</button>
 
         <!-- "Xodim admin" (yuzi ham xodim, ham admin sifatida tanilgan
              hisobga bog'langan) uchun: Admin tugmasi orqali yuz skanerlansa
@@ -7215,6 +7225,10 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
     document.getElementById("btnCome").addEventListener("click", () => startCamera("IN"));
     document.getElementById("btnLeave").addEventListener("click", () => startCamera("OUT"));
     document.getElementById("btnBonus").addEventListener("click", () => startCamera("BONUS"));
+    document.getElementById("btnResultClose").addEventListener("click", () => {
+      clearTimeout(resultTimer);
+      showScreen("home");
+    });
     document.getElementById("btnAdminLink").addEventListener("click", () => {
       document.getElementById("adminLoginModal").classList.add("active");
     });
@@ -7712,6 +7726,7 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         currentBranch
       );
       showAttendanceResult(result, employee.photoUrl, branchNoteFor(employee, branches));
+      kioskPraise(employee, result);
     } catch (err) {
       console.error("finishRecognition failed:", err);
       showResultError("Xatolik yuz berdi", uzError(err));
@@ -7839,6 +7854,7 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         currentBranch
       );
       showAttendanceResult(result, employee.photoUrl, branchNoteFor(employee, branches));
+      kioskPraise(employee, result);
     } catch (err) {
       showResultError("Xatolik yuz berdi", uzError(err));
     }
@@ -7951,6 +7967,8 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
       extra.style.display = "none";
       extra.innerHTML = "";
     }
+    const closeBtn = document.getElementById("btnResultClose");
+    if (closeBtn) closeBtn.style.display = "none";
   }
   function setResultPhoto(photoUrl) {
     if (photoUrl) {
@@ -8026,9 +8044,10 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         cfg
       });
       resultTitle.textContent = `${firstName}, ${BF_OYLAR[month - 1].toLowerCase()} oyi`;
-      resultBody.textContent = `Jarimalar: ${bfSom(r.fineTotal)}\nBonuslar: ${bfSom(r.bonusTotal)}`;
+      resultBody.textContent = "";
       const box = document.getElementById("resultExtra");
       box.innerHTML = "";
+      const totals = `<div class="bf-totals"><div><span class="bf-lbl">JARIMALAR</span><span class="bf-val fine">${escapeHtml(bfSom(r.fineTotal))}</span></div><div><span class="bf-lbl">BONUSLAR</span><span class="bf-val bonus">${escapeHtml(bfSom(r.bonusTotal))}</span></div></div>`;
       const lines = [];
       for (const it of r.monthly) {
         const lost = it.state === "lost" && !it.edited;
@@ -8043,19 +8062,98 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         lines.push({ d: ddmmyyyy(d.dateKey).slice(0, 5), t: bfItemLabel(it) + (it.minutes ? ` (${it.minutes} daq.)` : ""), v, sign: it.deleted ? 0 : it.sign });
       }
       if (!lines.length) {
-        box.innerHTML = `<p class="muted" style="margin:6px 0 0;">Bu oyda hozircha bonus ham, jarima ham yo'q.</p>`;
+        box.innerHTML = totals + `<p class="muted" style="margin:6px 0 0; text-align:center;">Bu oyda hozircha bonus ham, jarima ham yo'q.</p>`;
       } else {
-        box.innerHTML = `<table class="bf-kiosk-table">${lines.map((l) => `<tr><td>${escapeHtml(l.d)}</td><td>${escapeHtml(l.t)}${l.sub ? `<span class="bf-kiosk-sub">${escapeHtml(l.sub)}</span>` : ""}</td><td style="color:${l.sign < 0 ? "#C62828" : l.sign > 0 ? "#1B7F3B" : "#777"}; text-align:right; font-weight:700;">${escapeHtml(l.v)}</td></tr>`).join("")}</table>`;
+        box.innerHTML = totals + `<table class="bf-kiosk-table">${lines.map((l) => `<tr><td>${escapeHtml(l.d)}</td><td>${escapeHtml(l.t)}${l.sub ? `<span class="bf-kiosk-sub">${escapeHtml(l.sub)}</span>` : ""}</td><td style="color:${l.sign < 0 ? "#C62828" : l.sign > 0 ? "#1B7F3B" : "#777"}; text-align:right; font-weight:700;">${escapeHtml(l.v)}</td></tr>`).join("")}</table>`;
       }
       box.style.display = "block";
       if (r.from > r.to) resultBadge.textContent = `Qoidalar ${ddmmyyyy(cfg.startDate)} dan kuchga kiradi.`;
-      scheduleReturnHome(3e4);
+      document.getElementById("btnResultClose").style.display = "block";
+      // 19.10.2026: yopilmasa 20 soniyadan keyin bosh oynaga qaytadi.
+      scheduleReturnHome(2e4);
     } catch (err) {
       console.error("showBonusFineForEmployee failed:", err);
       showResultError("Xatolik yuz berdi", uzError(err));
     }
   }
 
+  // 19.10.2026 so'rovi: maqtov va tabrik (faqat ekranda ko'rsatiladi).
+  //  * KELYAPMAN: oxirgi 7 kun ichida har bir ish kuniga kechikmasdan va
+  //    qoldirmasdan kelgan bo'lsa - "siz eng namunali xodimsiz, rahmat".
+  //  * KETYAPMAN, oyning oxirgi ish kunida: oy davomida kechikish, ruxsat
+  //    va sababsiz kelmaslik bo'lmasa - "tabriklaymiz, sizga bonus beriladi".
+  async function kioskPraise(employee, result) {
+    try {
+      if (!result || !employee) return;
+      const isIn = result.status === AttendanceStatus.CHECKED_IN;
+      const isOut = result.status === AttendanceStatus.CHECKED_OUT;
+      if (!isIn && !isOut) return;
+      if (isIn && (result.period === 2 || (result.lateMinutes || 0) > 0)) return;
+      if (isOut && result.period === 1 && result.nextShiftStart) return;
+      const today = tashkentDateKey();
+      const year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7));
+      const weekStart = addDaysToKey(today, -6);
+      const py = Number(weekStart.slice(0, 4)), pmn = Number(weekStart.slice(5, 7));
+      const t = (pr, fb) => vaqtBilanCheklash(pr, 6e3).catch(() => fb);
+      const [history, attCur, attPrev, statuses, perms, rawCfg] = await Promise.all([
+        t(db.listScheduleHistory(employee.id), null),
+        t(db.listAttendanceForMonth(employee.id, year, month), null),
+        py !== year || pmn !== month ? t(db.listAttendanceForMonth(employee.id, py, pmn), []) : [],
+        t(db.listDayStatusesForEmployee(employee.id), []),
+        t(db.listLatePermissionsForEmployee(employee.id), []),
+        typeof db.getBonusFineConfig === "function" ? t(db.getBonusFineConfig(), null) : null
+      ]);
+      if (!history || !attCur) return;
+      const att = new Map([...attPrev || [], ...attCur].map((r) => [r.dateKey, r]));
+      const st = new Map((statuses || []).map((r) => [r.dateKey, r.status]));
+      const pm = new Map((perms || []).map((r) => [r.dateKey, r]));
+      const cfg = bfConfig(rawCfg);
+      const firstName = String(employee.firstName || "").split(" ")[0];
+      let text = null;
+      if (isIn) {
+        let workDays = 0, ok = true;
+        for (let dk = weekStart; dk <= today; dk = addDaysToKey(dk, 1)) {
+          const status = resolveDayStatusSync(st.get(dk), history, dk);
+          if (!WORK_LIKE_STATUSES.has(status)) continue;
+          if (dk === today) {
+            workDays++;
+            continue;
+          }
+          const day = bfComputeDay({ dateKey: dk, record: att.get(dk) || null, schedule: pickScheduleForDate(history, dk), status, permission: pm.get(dk) || null, cfg, nowMs: Date.now() });
+          if (!day.periods.length) continue;
+          workDays++;
+          if (!day.worked || day.late) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok && workDays >= 4) text = `⭐ ${firstName}, siz eng namunali xodimsiz!\nOxirgi bir haftada bir marta ham kechikmadingiz.\nRahmat!`;
+      } else if (cfg.monthlyBestBonus > 0) {
+        const monthEnd = monthDateKey(year, month, daysInMonth(year, month));
+        let laterWork = false;
+        for (let dk = addDaysToKey(today, 1); dk <= monthEnd; dk = addDaysToKey(dk, 1)) {
+          if (WORK_LIKE_STATUSES.has(resolveDayStatusSync(st.get(dk), history, dk))) {
+            laterWork = true;
+            break;
+          }
+        }
+        if (!laterWork) {
+          const r = bfComputeMonth({ employee, year, month, scheduleHistory: history, attendanceByDate: att, dayStatusByDate: st, permissionByDate: pm, adjustments: /* @__PURE__ */ new Map(), cfg });
+          const best = r.monthly.find((i) => i.type === "monthlyBest");
+          if (best && best.state !== "lost") text = `\u{1F389} Tabriklaymiz, ${firstName}!\nSiz oy davomida bir marta ham kechikmadingiz.\nSizga ${bfSom(cfg.monthlyBestBonus)} bonus beriladi!`;
+        }
+      }
+      if (!text) return;
+      const scr = document.getElementById("screen-result");
+      if (!scr || !scr.classList.contains("active")) return;
+      const box = document.getElementById("resultExtra");
+      box.innerHTML = `<div class="praise-box">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+      box.style.display = "block";
+      scheduleReturnHome(12e3);
+    } catch (err) {
+      console.warn("Maqtov hisoblanmadi (non-fatal):", err);
+    }
+  }
   function showAttendanceResult(result, photoUrl, branchNote) {
     stopCamera();
     adminChoiceRow.style.display = "none";
@@ -14517,6 +14615,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 17, d: "2026-10-19", note: "Bonus oynasida YOPISH tugmasi (20 soniyada o'zi yopiladi), katta JARIMALAR/BONUSLAR yozuvlari; haftalik maqtov va oy oxiridagi tabrik." },
     { n: 16, d: "2026-10-19", note: "Bonus va jarimalar: avtomatik kechikish/erta ketish/ketish qayd etilmagan jarimalari, erta kelish va oylik bonuslar; admin bo'limi; kioskda \"Bonus va jarimalarim\" tugmasi; salomlashuv yuqoriga ko'tarildi." },
     { n: 15, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi endi kalendardan bosib tanlanadi." },
     { n: 14, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi: Kun/Oy/Yil tanlov ro'yxatlari (telefonda sana buzilib, saqlanmay qolgan edi)." },
@@ -14573,7 +14672,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-19 12:00";
+  var BUILD_STAMP = "2026-10-19 13:00";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
