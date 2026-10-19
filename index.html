@@ -89,8 +89,13 @@ html, body {
 
 .kiosk-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
 .greeting { font-size: 30px; font-weight: 700; margin: 0; }
+/* 19.10.2026: kiosk logosi - telefon kengligida (~380 px), lekin ekran
+   past bo'lsa tugmalar sig'ishi uchun o'zi kichrayadi. */
+.kiosk-logo-auto { width: min(90vw, 420px, max(160px, calc(100vh - 500px))); }
+@media (orientation: landscape) { .kiosk-logo-auto { width: min(90vw, 420px, max(140px, calc(100vh - 580px))); } }
 .kiosk-greeting { text-align: center; margin: 34px 0 0; display: flex; flex-direction: column; gap: 8px; }
-.bonus-row { width: 100%; max-width: 900px; margin: 18px auto 0; }
+.action-row.home-actions { flex-direction: column; max-width: 640px; gap: 18px; }
+.action-row.home-actions .big-button { width: 100%; }
 .big-button.bonus-button { width: 100%; background: #fff; color: var(--deep-navy); border: 2px solid #C9A227; box-shadow: none; }
 #resultExtra { margin-top: 10px; max-height: 46vh; overflow-y: auto; text-align: left; }
 .bf-kiosk-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; overflow-wrap: anywhere; }
@@ -103,7 +108,7 @@ html, body {
 .bf-val { display: block; font-size: 22px; font-weight: 800; margin-top: 4px; }
 .bf-val.fine { color: #C62828; }
 .bf-val.bonus { color: #1B7F3B; }
-.big-button.result-close-button { flex: 0 0 auto; width: 100%; max-width: 640px; height: auto; min-height: 0; margin: 16px auto 0; background: var(--deep-navy); color: #fff; font-size: 20px; padding: 16px; }
+.big-button.result-close-button { flex: 0 0 auto; width: 100%; height: auto; min-height: 0; margin: 14px 0 0; background: var(--deep-navy); color: #fff; font-size: 20px; padding: 16px; }
 .praise-box { margin-top: 12px; padding: 14px 12px; border-radius: 14px; background: #FFF8E1; border: 2px solid #C9A227; font-size: 19px; font-weight: 700; color: #4E342E; text-align: center; line-height: 1.45; }
 .bf-kiosk-table td { padding: 6px 6px; border-bottom: 1px solid rgba(0,0,0,.08); vertical-align: top; }
 .sub-greeting { font-size: 19px; color: var(--navy); margin: 0; }
@@ -710,14 +715,12 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       </div>
 
       <div class="kiosk-center">
-        <div class="action-row">
+        <!-- 19.10.2026 so'rovi: tartib - KELYAPMAN tepada, BONUS VA JARIMALARIM
+             o'rtada, KETYAPMAN eng pastda. -->
+        <div class="action-row home-actions">
           <button class="big-button come-button" id="btnCome">🟢 KELYAPMAN</button>
-          <button class="big-button leave-button" id="btnLeave">🔴 KETYAPMAN</button>
-        </div>
-
-        <!-- 19.10.2026 so'rovi: xodim yuzi orqali o'z bonus va jarimalarini ko'radi. -->
-        <div class="bonus-row">
           <button class="big-button bonus-button" id="btnBonus">💰 BONUS VA JARIMALARIM</button>
+          <button class="big-button leave-button" id="btnLeave">🔴 KETYAPMAN</button>
         </div>
 
         <button class="admin-link" id="btnAdminFace" style="margin-top:14px; font-size:12px; display:none;">Admin</button>
@@ -755,9 +758,10 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
           <p class="result-body" id="resultBody"></p>
           <p class="result-badge" id="resultBadge"></p>
           <div id="resultExtra" style="display:none;"></div>
+          <!-- 19.10.2026 so'rovi: bonus/jarima oynasini yopish - bosh oynaga qaytadi.
+               Kartaning shundoq tagida turadi. -->
+          <button class="big-button result-close-button" id="btnResultClose" style="display:none;">YOPISH</button>
         </div>
-        <!-- 19.10.2026 so'rovi: bonus/jarima oynasini yopish - bosh oynaga qaytadi. -->
-        <button class="big-button result-close-button" id="btnResultClose" style="display:none;">YOPISH</button>
 
         <!-- "Xodim admin" (yuzi ham xodim, ham admin sifatida tanilgan
              hisobga bog'langan) uchun: Admin tugmasi orqali yuz skanerlansa
@@ -6479,7 +6483,11 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         } else if (H) {
           sizeCss = `height:${H}px; width:auto;`;
         } else {
-          sizeCss = "height:auto; width:auto; max-height:clamp(120px, 22vh, 200px); max-width:min(92vw, 560px); object-fit:contain;";
+          // 19.10.2026 so'rovi: logo kattaroq - telefon ekrani kengligida
+          // (~380 px). Katta/past ekranlarda tugmalar sig'ishi uchun balandlik
+          // bo'yicha ham cheklanadi (46vh).
+          sizeCss = "height:auto; object-fit:contain;";
+          img.className = "kiosk-logo-auto";
         }
         img.style.cssText = sizeCss + " max-width:100%; display:block;";
         header.appendChild(img);
@@ -14615,6 +14623,8 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 19, d: "2026-10-19", note: "Kiosk ekranida Den Aroma logosi kattalashtirildi (ekran kengligida, ~380 px)." },
+    { n: 18, d: "2026-10-19", note: "Bosh ekran tartibi: KELYAPMAN, BONUS VA JARIMALARIM, KETYAPMAN. YOPISH tugmasi kartaning tagiga ko'tarildi." },
     { n: 17, d: "2026-10-19", note: "Bonus oynasida YOPISH tugmasi (20 soniyada o'zi yopiladi), katta JARIMALAR/BONUSLAR yozuvlari; haftalik maqtov va oy oxiridagi tabrik." },
     { n: 16, d: "2026-10-19", note: "Bonus va jarimalar: avtomatik kechikish/erta ketish/ketish qayd etilmagan jarimalari, erta kelish va oylik bonuslar; admin bo'limi; kioskda \"Bonus va jarimalarim\" tugmasi; salomlashuv yuqoriga ko'tarildi." },
     { n: 15, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi endi kalendardan bosib tanlanadi." },
@@ -14672,7 +14682,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-19 13:00";
+  var BUILD_STAMP = "2026-10-19 13:45";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
