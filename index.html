@@ -89,10 +89,6 @@ html, body {
 
 .kiosk-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
 .greeting { font-size: 30px; font-weight: 700; margin: 0; }
-/* 19.10.2026: kiosk logosi - telefon kengligida (~380 px), lekin ekran
-   past bo'lsa tugmalar sig'ishi uchun o'zi kichrayadi. */
-.kiosk-logo-auto { width: min(90vw, 420px, max(160px, calc(100vh - 500px))); }
-@media (orientation: landscape) { .kiosk-logo-auto { width: min(90vw, 420px, max(140px, calc(100vh - 580px))); } }
 .kiosk-greeting { text-align: center; margin: 34px 0 0; display: flex; flex-direction: column; gap: 8px; }
 .action-row.home-actions { flex-direction: column; max-width: 640px; gap: 18px; }
 .action-row.home-actions .big-button { width: 100%; }
@@ -6483,11 +6479,9 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
         } else if (H) {
           sizeCss = `height:${H}px; width:auto;`;
         } else {
-          // 19.10.2026 so'rovi: logo kattaroq - telefon ekrani kengligida
-          // (~380 px). Katta/past ekranlarda tugmalar sig'ishi uchun balandlik
-          // bo'yicha ham cheklanadi (46vh).
-          sizeCss = "height:auto; object-fit:contain;";
-          img.className = "kiosk-logo-auto";
+          // 19.10.2026: kattalashtirilgan logo kamera ekranini ham pastga
+          // surib, skanerlashni qiyinlashtirdi - eski o'lchamga qaytarildi.
+          sizeCss = "height:auto; width:auto; max-height:clamp(120px, 22vh, 200px); max-width:min(92vw, 560px); object-fit:contain;";
         }
         img.style.cssText = sizeCss + " max-width:100%; display:block;";
         header.appendChild(img);
@@ -14623,6 +14617,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 20, d: "2026-10-19", note: "Logo eski o'lchamiga qaytarildi (katta logo kamera ekranini surib, skanerlashni qiyinlashtirgan edi)." },
     { n: 19, d: "2026-10-19", note: "Kiosk ekranida Den Aroma logosi kattalashtirildi (ekran kengligida, ~380 px)." },
     { n: 18, d: "2026-10-19", note: "Bosh ekran tartibi: KELYAPMAN, BONUS VA JARIMALARIM, KETYAPMAN. YOPISH tugmasi kartaning tagiga ko'tarildi." },
     { n: 17, d: "2026-10-19", note: "Bonus oynasida YOPISH tugmasi (20 soniyada o'zi yopiladi), katta JARIMALAR/BONUSLAR yozuvlari; haftalik maqtov va oy oxiridagi tabrik." },
@@ -14682,7 +14677,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-19 13:45";
+  var BUILD_STAMP = "2026-10-19 14:10";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
