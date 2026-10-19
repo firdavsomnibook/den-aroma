@@ -104,6 +104,8 @@ html, body {
 .bf-emp-name { font-weight: 800; color: var(--deep-navy); }
 .bf-emp-pos { font-size: 12px; color: #5A6071; }
 .bf-emp-meta { font-size: 12px; color: #444; margin-top: 2px; }
+.rest-red { color: #D32F2F; font-weight: 800; font-size: 16px; margin: 4px 0; }
+.rest-red-sm { font-size: 12px; margin: 2px 0; }
 .bf-lightbox { position: fixed; inset: 0; z-index: 3000; background: rgba(10,12,30,.72); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .bf-lightbox-box { background: #fff; border-radius: 16px; padding: 16px; text-align: center; max-width: min(92vw, 560px); }
 .bf-lightbox-box img { display: block; max-width: 100%; max-height: 70vh; border-radius: 12px; margin: 0 auto 10px; object-fit: contain; }
@@ -10253,6 +10255,8 @@ ${origLine}${reasonLine}` });
             name: fullName,
             position: employee.position || "",
             scheduleText: sch ? `${sch.workStart}\u2013${sch.workEnd}` + (hasSecondShift(sch) ? `, ${sch.workStart2}\u2013${sch.workEnd2}` : "") : "\u2014",
+            restText: restDaysText(sch),
+            restToday: isRestToday(sch),
             dayLabel: "Bugun",
             inTime: "\u2026",
             outTime: "\u2026"
@@ -13552,6 +13556,8 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
       const history = schedulesByEmployee.get(r.employeeId) || [];
       const sch = pickScheduleForDate(history, infoDay);
       r.scheduleText = sch ? `${sch.workStart}\u2013${sch.workEnd}` + (hasSecondShift(sch) ? `, ${sch.workStart2}\u2013${sch.workEnd2}` : "") : "\u2014";
+      r.restText = restDaysText(sch);
+      r.restToday = isRestToday(sch);
       const att = attendanceBy.get(r.employeeId) || empty;
       let rec = att.get(infoDay) || null, recDay = infoDay;
       if (!rec) {
@@ -13593,6 +13599,7 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
           <div class="bf-emp-name">${escapeHtml(r.employeeName)}</div>
           ${r.position ? `<div class="bf-emp-pos">${escapeHtml(r.position)}</div>` : ""}
           <div class="bf-emp-meta">Jadval: ${escapeHtml(r.scheduleText || "\u2014")}</div>
+          <div class="rest-red rest-red-sm">Dam: ${escapeHtml(r.restText || "\u2014")}${r.restToday ? " (bugun)" : ""}</div>
           <div class="bf-emp-meta">${escapeHtml(r.lastDayLabel || "Bugun")}: kelish <b>${escapeHtml(r.lastIn || "\u2014")}</b>, ketish <b>${escapeHtml(r.lastOut || "\u2014")}</b></div>
         </td>
         <td>${cnt(r.lateCount, r.lateSum)}</td>
@@ -13633,6 +13640,7 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
         <div class="bf-lightbox-name">${escapeHtml(i.name || "")}</div>
         ${i.position ? `<div class="bf-lightbox-pos">${escapeHtml(i.position)}</div>` : ""}
         <div class="bf-lightbox-pos">Jadval: <b>${escapeHtml(i.scheduleText || "\u2014")}</b></div>
+        ${i.restText ? `<div class="rest-red">Dam olish kuni: ${escapeHtml(i.restText)}${i.restToday ? " \u2014 bugun dam" : ""}</div>` : ""}
         <div class="bf-lightbox-pos">${escapeHtml(i.dayLabel || "Bugun")}: kelish <b>${escapeHtml(i.inTime || "\u2014")}</b>, ketish <b>${escapeHtml(i.outTime || "\u2014")}</b></div>
         <button class="btn btn-primary" type="button">Yopish</button>`;
     };
@@ -13651,8 +13659,28 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
     document.body.appendChild(ov);
     return draw;
   }
+  // 19.10.2026 so'rovi: dam olish kuni(lar)i matni. Haftalik + "2 haftada
+  // 1 marta" dam ham hisobga olinadi.
+  function restDaysText(schedule) {
+    if (!schedule) return "\u2014";
+    const names = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"];
+    const parts = restDaysOf(schedule).map((d) => names[d]);
+    if (schedule.biweeklyRestFrom) {
+      const today = tashkentDateKey();
+      let next = schedule.biweeklyRestFrom;
+      let guard = 0;
+      while (next < today && guard++ < 400) next = addDaysToKey(next, 14);
+      parts.push(`har 2 haftada ${weekdayNameUz(schedule.biweeklyRestFrom)} (keyingisi ${ddmmyyyy(next).slice(0, 5)})`);
+    }
+    return parts.length ? parts.join(", ") : "dam kuni yo'q";
+  }
+  function isRestToday(schedule) {
+    if (!schedule) return false;
+    const today = tashkentDateKey();
+    return computeDayStatusFromSchedule(schedule, today) === DAY_STATUS_REST;
+  }
   function bfShowPhoto(r) {
-    showEmployeePhoto({ photoUrl: r.photoUrl, name: r.employeeName, position: r.position, scheduleText: r.scheduleText, dayLabel: r.lastDayLabel, inTime: r.lastIn, outTime: r.lastOut });
+    showEmployeePhoto({ photoUrl: r.photoUrl, name: r.employeeName, position: r.position, scheduleText: r.scheduleText, restText: r.restText, restToday: r.restToday, dayLabel: r.lastDayLabel, inTime: r.lastIn, outTime: r.lastOut });
   }
   function bfStateText(it) {
     if (it.deleted) return `<span style="color:#888;">o'chirilgan</span>`;
@@ -14728,6 +14756,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 22, d: "2026-10-19", note: "Surat oynasida va Bonus/jarima jadvalida dam olish kuni qizil yozuvda ko'rsatiladi." },
     { n: 21, d: "2026-10-19", note: "Bonus va jarimalar va Xodimlar: xodim surati bosilsa kattalashadi; ism, lavozim, jadval va kelish/ketish vaqti ko'rinadi." },
     { n: 20, d: "2026-10-19", note: "Logo eski o'lchamiga qaytarildi (katta logo kamera ekranini surib, skanerlashni qiyinlashtirgan edi)." },
     { n: 19, d: "2026-10-19", note: "Kiosk ekranida Den Aroma logosi kattalashtirildi (ekran kengligida, ~380 px)." },
@@ -14789,7 +14818,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-19 14:40";
+  var BUILD_STAMP = "2026-10-19 15:00";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
