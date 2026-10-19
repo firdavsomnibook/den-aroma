@@ -89,6 +89,15 @@ html, body {
 
 .kiosk-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
 .greeting { font-size: 30px; font-weight: 700; margin: 0; }
+.kiosk-greeting { text-align: center; margin: 34px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.bonus-row { width: 100%; max-width: 900px; margin: 18px auto 0; }
+.big-button.bonus-button { width: 100%; background: #fff; color: var(--deep-navy); border: 2px solid #C9A227; box-shadow: none; }
+#resultExtra { margin-top: 10px; max-height: 46vh; overflow-y: auto; text-align: left; }
+.bf-kiosk-table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; overflow-wrap: anywhere; }
+.bf-kiosk-table td:first-child { width: 52px; }
+.bf-kiosk-table td:last-child { width: 38%; }
+.bf-kiosk-sub { display: block; font-size: 12px; color: #777; }
+.bf-kiosk-table td { padding: 6px 6px; border-bottom: 1px solid rgba(0,0,0,.08); vertical-align: top; }
 .sub-greeting { font-size: 19px; color: var(--navy); margin: 0; }
 
 .action-row { display: flex; gap: 28px; width: 100%; max-width: 900px; margin: 30px auto 0; }
@@ -686,13 +695,21 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
              orqali qo'yadi (qarang branding.js). -->
       </div>
 
-      <div class="kiosk-center">
+      <!-- 19.10.2026 so'rovi: salomlashuv yozuvi yuqoriga (logo tagiga). -->
+      <div class="kiosk-greeting">
         <p class="greeting">Assalomu alaykum, hurmatli Xodim/Xodima!</p>
         <p class="sub-greeting">Kelyapsizmi yoki ketyapsizmi?</p>
+      </div>
 
+      <div class="kiosk-center">
         <div class="action-row">
           <button class="big-button come-button" id="btnCome">🟢 KELYAPMAN</button>
           <button class="big-button leave-button" id="btnLeave">🔴 KETYAPMAN</button>
+        </div>
+
+        <!-- 19.10.2026 so'rovi: xodim yuzi orqali o'z bonus va jarimalarini ko'radi. -->
+        <div class="bonus-row">
+          <button class="big-button bonus-button" id="btnBonus">💰 BONUS VA JARIMALARIM</button>
         </div>
 
         <button class="admin-link" id="btnAdminFace" style="margin-top:14px; font-size:12px; display:none;">Admin</button>
@@ -729,6 +746,7 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
           <p class="result-title" id="resultTitle"></p>
           <p class="result-body" id="resultBody"></p>
           <p class="result-badge" id="resultBadge"></p>
+          <div id="resultExtra" style="display:none;"></div>
         </div>
 
         <!-- "Xodim admin" (yuzi ham xodim, ham admin sifatida tanilgan
@@ -1111,6 +1129,35 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     </section>
 
     <!-- 05.09.2026 so'rovi: OYLIK MAOSH HISOBI -->
+    <!-- 19.10.2026 so'rovi: avtomatik bonus va jarimalar (qarang bonusFineService.js). -->
+    <section class="admin-section" data-section="bonusFine">
+      <div class="toolbar">
+        <p class="section-title" style="margin:0;">Bonus va jarimalar</p>
+        <label class="muted">Yil:</label>
+        <input type="number" id="bfYear" style="width:90px;" />
+        <label class="muted">Oy:</label>
+        <input type="number" id="bfMonth" min="1" max="12" style="width:70px;" />
+        <button class="btn btn-primary" id="btnBfCalc">Hisoblash</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary" id="btnBfConfig" style="display:none;">⚙️ Qoidalar</button>
+      </div>
+      <div class="card" id="bfConfigBox" style="display:none; margin-bottom:14px;"></div>
+      <p class="muted" style="font-size:12px; margin-top:0;">
+        Kechikish: 1–30 daqiqa 30 000, keyin har daqiqa +2 000. Ruxsatsiz erta ketish: 1–15 daqiqa 20 000, ortig'i 50 000.
+        Ketish qayd etilmasa: har smena 20 000. Erta kelish (5+ daqiqa oldin): kuniga 5 000.
+        Oylik: vaqtga rioya 100 000, eng intizomli xodim 200 000. Maoshga ulanmagan.
+      </p>
+      <p id="bfSummary" class="muted"></p>
+      <div style="overflow-x:auto;"><table class="data-table" id="bfTable">
+        <thead><tr>
+          <th>Xodim</th><th>Kechikish</th><th>Erta ketish</th><th>Ketish qayd etilmagan</th><th>Jami jarima</th>
+          <th>Erta kelish bonusi</th><th>Oylik bonuslar</th><th>Jami bonus</th><th>Natija</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div id="bfDetail" style="margin-top:18px;"></div>
+    </section>
+
     <section class="admin-section" data-section="payroll">
       <div class="toolbar">
         <p class="section-title" style="margin:0;">Maosh</p>
@@ -2769,6 +2816,25 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       const snap = await getDocs(q);
       return snap.docs.map(docToObject);
     }
+    // 19.10.2026: bonus va jarimalar - adminning tuzatishlari va qoidalar.
+    async function listBonusFine2(employeeId) {
+      const col = collection(dbFs, "bonusFine");
+      const snap = await getDocs(employeeId ? query(col, where("employeeId", "==", employeeId)) : col);
+      return snap.docs.map(docToObject);
+    }
+    async function setBonusFineAdjustment2(id, data) {
+      await setDoc(doc(dbFs, "bonusFine", id), { ...data, kind: "adj", updatedAt: nowIso2() });
+    }
+    async function deleteBonusFineAdjustment2(id) {
+      await deleteDoc(doc(dbFs, "bonusFine", id));
+    }
+    async function getBonusFineConfig2() {
+      const snap = await getDoc(doc(dbFs, "bonusFine", "config"));
+      return snap.exists() ? snap.data() : null;
+    }
+    async function setBonusFineConfig2(cfg) {
+      await setDoc(doc(dbFs, "bonusFine", "config"), { ...cfg, kind: "config", updatedAt: nowIso2() });
+    }
     async function listAllLatePermissions2() {
       const snap = await getDocs(collection(dbFs, "latePermissions"));
       return snap.docs.map(docToObject);
@@ -3230,6 +3296,11 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
       getScheduleForDate: getScheduleForDate2,
       getCurrentSchedule: getCurrentSchedule2,
       listScheduleHistory: listScheduleHistory2,
+      listBonusFine: listBonusFine2,
+      setBonusFineAdjustment: setBonusFineAdjustment2,
+      deleteBonusFineAdjustment: deleteBonusFineAdjustment2,
+      getBonusFineConfig: getBonusFineConfig2,
+      setBonusFineConfig: setBonusFineConfig2,
       listAllSchedules: listAllSchedules2,
       saveEmbeddings: saveEmbeddings2,
       hasFaceEnrolled: hasFaceEnrolled2,
@@ -3356,6 +3427,11 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
     listLatePermissionsForEmployee: () => listLatePermissionsForEmployee,
     listPayrolls: () => listPayrolls,
     listScheduleHistory: () => listScheduleHistory,
+    listBonusFine: () => listBonusFine,
+    setBonusFineAdjustment: () => setBonusFineAdjustment,
+    deleteBonusFineAdjustment: () => deleteBonusFineAdjustment,
+    getBonusFineConfig: () => getBonusFineConfig,
+    setBonusFineConfig: () => setBonusFineConfig,
     listScheduleOverrides: () => listScheduleOverrides,
     listUnknownFaces: () => listUnknownFaces,
     listUsers: () => listUsers,
@@ -3689,6 +3765,39 @@ table.data-table td { padding: 8px 10px; border-top: 1px solid #EEF0F7; font-siz
   }
   async function getCurrentSchedule(employeeId, todayKey) {
     return getScheduleForDate(employeeId, todayKey);
+  }
+  // 19.10.2026: bonus/jarima tuzatishlari - mahalliy rejimda localStorage'da.
+  var BF_LOCAL_KEY = "shifoat_bonus_fine";
+  function bfLocalAll() {
+    try {
+      return JSON.parse(localStorage.getItem(BF_LOCAL_KEY) || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+  function bfLocalSave(all) {
+    localStorage.setItem(BF_LOCAL_KEY, JSON.stringify(all));
+  }
+  async function listBonusFine(employeeId) {
+    return Object.entries(bfLocalAll()).map(([id, v]) => ({ id, ...v })).filter((r) => !employeeId || r.employeeId === employeeId);
+  }
+  async function setBonusFineAdjustment(id, data) {
+    const all = bfLocalAll();
+    all[id] = { ...data, kind: "adj", updatedAt: nowIso() };
+    bfLocalSave(all);
+  }
+  async function deleteBonusFineAdjustment(id) {
+    const all = bfLocalAll();
+    delete all[id];
+    bfLocalSave(all);
+  }
+  async function getBonusFineConfig() {
+    return bfLocalAll().config || null;
+  }
+  async function setBonusFineConfig(cfg) {
+    const all = bfLocalAll();
+    all.config = { ...cfg, kind: "config", updatedAt: nowIso() };
+    bfLocalSave(all);
   }
   async function listScheduleHistory(employeeId) {
     const versions = await getAllByIndex("schedules", "employeeId", employeeId);
@@ -6081,7 +6190,10 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
     // Xuddi "Xavfsizlik paneli" kabi: MAVJUD adminlarga avtomatik
     // BERILMAYDI (Super Admin bo'lish yetarli emas), faqat yangi admin
     // yaratilganda ptichka ataylab belgilansa yoki admin11/M.Ali bo'lsa.
-    payroll_panel: "Maosh paneli"
+    payroll_panel: "Maosh paneli",
+    // 19.10.2026 so'rovi: bonus va jarimalarni o'chirish/tuzatish huquqi
+    // (alohida adminga beriladi; Super Admin bo'lishning o'zi yetarli emas).
+    bonus_fine_manage: "Bonus/jarimani o'chirish va tuzatish"
   };
   var ADMIN_DELETE_OWNER_LOGINS = ["admin11", "M.Ali", "admin"];
   function isDeleteOwnerLogin(username) {
@@ -7102,6 +7214,7 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
   function wireHomeScreen() {
     document.getElementById("btnCome").addEventListener("click", () => startCamera("IN"));
     document.getElementById("btnLeave").addEventListener("click", () => startCamera("OUT"));
+    document.getElementById("btnBonus").addEventListener("click", () => startCamera("BONUS"));
     document.getElementById("btnAdminLink").addEventListener("click", () => {
       document.getElementById("adminLoginModal").classList.add("active");
     });
@@ -7479,7 +7592,9 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
   async function finishRecognition() {
     // Yuz tanildi - endi joylashuvni tekshiramiz (davomat yozilishidan
     // oldin). Agar ish joyidan tashqarida bo'lsa, hech narsa yozilmaydi.
-    if (!await joylashuvTosigi(currentMode2)) {
+    // "BONUS" rejimida faqat ma'lumot ko'rsatiladi - davomat yozilmaydi,
+    // shuning uchun joylashuv qulfi tekshirilmaydi.
+    if (currentMode2 !== "BONUS" && !await joylashuvTosigi(currentMode2)) {
       tashxisYoz("JOYLASHUV");
       return;
     }
@@ -7576,6 +7691,10 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
       }
       const fullName = `${employee.firstName} ${employee.lastName || ""}`.trim();
       tashxisYoz("TANILDI", { ...masofaMalumoti, xodim: fullName });
+      if (currentMode2 === "BONUS") {
+        await showBonusFineForEmployee(employee);
+        return;
+      }
       let branches = [];
       if (currentBranch && employee.branchId && employee.branchId !== currentBranch.id) {
         branches = await oqishYokiZaxira(
@@ -7827,6 +7946,11 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
   var resultPhoto = document.getElementById("resultPhoto");
   function setResultKind(kind) {
     resultCard.className = `result-card ${kind}`;
+    const extra = document.getElementById("resultExtra");
+    if (extra) {
+      extra.style.display = "none";
+      extra.innerHTML = "";
+    }
   }
   function setResultPhoto(photoUrl) {
     if (photoUrl) {
@@ -7863,6 +7987,75 @@ Qattiq nazorat yoqilgan \u2014 faqat o'z ish joyingizda belgilana oladi.`
     showScreen("result");
     scheduleReturnHome();
   }
+  // 19.10.2026 so'rovi: kioskda "Bonus va jarimalarim" - xodim yuzi orqali
+  // tanilgach, joriy oydagi bonus va jarimalarini ko'radi. Davomat YOZILMAYDI.
+  async function showBonusFineForEmployee(employee) {
+    stopCamera();
+    adminChoiceRow.style.display = "none";
+    setResultKind("info");
+    setResultPhoto(employee.photoUrl || null);
+    const firstName = String(employee.firstName || "").split(" ")[0];
+    resultTitle.textContent = `${firstName}, bonus va jarimalaringiz`;
+    resultBody.textContent = "Hisoblanmoqda…";
+    resultBadge.textContent = "";
+    showScreen("result");
+    clearTimeout(resultTimer);
+    try {
+      const today = tashkentDateKey();
+      const year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7));
+      const t = (p, fallback) => vaqtBilanCheklash(p, 8e3).catch(() => fallback);
+      const [history, attendance, statuses, perms, adjRows, rawCfg] = await Promise.all([
+        t(db.listScheduleHistory(employee.id), []),
+        t(db.listAttendanceForMonth(employee.id, year, month), []),
+        t(db.listDayStatusesForEmployee(employee.id), []),
+        t(db.listLatePermissionsForEmployee(employee.id), []),
+        typeof db.listBonusFine === "function" ? t(db.listBonusFine(employee.id), []) : [],
+        typeof db.getBonusFineConfig === "function" ? t(db.getBonusFineConfig(), null) : null
+      ]);
+      const cfg = bfConfig(rawCfg);
+      const byDate = (rows, fn) => new Map((rows || []).map((r) => [r.dateKey, fn(r)]));
+      const r = bfComputeMonth({
+        employee,
+        year,
+        month,
+        scheduleHistory: history || [],
+        attendanceByDate: byDate(attendance, (x) => x),
+        dayStatusByDate: byDate(statuses, (x) => x.status),
+        permissionByDate: byDate(perms, (x) => x),
+        adjustments: bfAdjustmentsFor(bfAdjustmentMap(adjRows), employee.id),
+        cfg
+      });
+      resultTitle.textContent = `${firstName}, ${BF_OYLAR[month - 1].toLowerCase()} oyi`;
+      resultBody.textContent = `Jarimalar: ${bfSom(r.fineTotal)}\nBonuslar: ${bfSom(r.bonusTotal)}`;
+      const box = document.getElementById("resultExtra");
+      box.innerHTML = "";
+      const lines = [];
+      for (const it of r.monthly) {
+        const lost = it.state === "lost" && !it.edited;
+        const holat = it.deleted ? "bekor qilingan" : lost ? "berilmaydi" : it.state === "pending" && !it.edited ? "oy oxirida aniqlanadi" : "+" + bfSom(it.amount);
+        lines.push({ d: "Oylik", t: bfItemLabel(it), sub: lost ? it.reason : "", v: holat, sign: lost || it.deleted ? 0 : 1 });
+      }
+      const recent = [];
+      for (const d of r.days) for (const it of d.items) recent.push({ d, it });
+      recent.reverse();
+      for (const { d, it } of recent.slice(0, 20)) {
+        const v = it.deleted ? "bekor qilingan" : it.pending && !it.edited ? "kun oxirida aniqlanadi" : (it.sign < 0 ? "−" : "+") + bfSom(it.amount);
+        lines.push({ d: ddmmyyyy(d.dateKey).slice(0, 5), t: bfItemLabel(it) + (it.minutes ? ` (${it.minutes} daq.)` : ""), v, sign: it.deleted ? 0 : it.sign });
+      }
+      if (!lines.length) {
+        box.innerHTML = `<p class="muted" style="margin:6px 0 0;">Bu oyda hozircha bonus ham, jarima ham yo'q.</p>`;
+      } else {
+        box.innerHTML = `<table class="bf-kiosk-table">${lines.map((l) => `<tr><td>${escapeHtml(l.d)}</td><td>${escapeHtml(l.t)}${l.sub ? `<span class="bf-kiosk-sub">${escapeHtml(l.sub)}</span>` : ""}</td><td style="color:${l.sign < 0 ? "#C62828" : l.sign > 0 ? "#1B7F3B" : "#777"}; text-align:right; font-weight:700;">${escapeHtml(l.v)}</td></tr>`).join("")}</table>`;
+      }
+      box.style.display = "block";
+      if (r.from > r.to) resultBadge.textContent = `Qoidalar ${ddmmyyyy(cfg.startDate)} dan kuchga kiradi.`;
+      scheduleReturnHome(3e4);
+    } catch (err) {
+      console.error("showBonusFineForEmployee failed:", err);
+      showResultError("Xatolik yuz berdi", uzError(err));
+    }
+  }
+
   function showAttendanceResult(result, photoUrl, branchNote) {
     stopCamera();
     adminChoiceRow.style.display = "none";
@@ -12050,7 +12243,8 @@ Bu amalni orqaga qaytarib bo'lmaydi.`,
     manage_admins: "Adminlar",
     delete_admins: "Admin o'chirish",
     security_panel: "Xavfsizlik",
-    payroll_panel: "Maosh paneli"
+    payroll_panel: "Maosh paneli",
+    bonus_fine_manage: "Bonus/jarima"
   };
   var HUQUQ_KALITLARI = Object.keys(HUQUQ_QISQA);
   var ERKIN_USTUN = "__erkin__";
@@ -12768,6 +12962,620 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
     return n.toLocaleString("ru-RU").replace(/ /g, " ");
   }
 
+  // src/business/bonusFineService.js
+  // 19.10.2026 so'rovi (mijoz qoidalari): avtomatik bonus va jarimalar.
+  //  * Kechikish: 1-30 daqiqa = 30 000; 30 dan keyin har to'liq daqiqa +2 000.
+  //  * Ruxsatsiz erta ketish: 1-15 daqiqa = 20 000; 15 dan ortiq = 50 000.
+  //  * Ketish qayd etilmasa: har smena uchun 20 000.
+  //  * Erta kelish bonusi: kunning BARCHA smenalariga kamida 5 daqiqa oldin
+  //    kelgan, barcha ketishlarni qayd etgan va ruxsatsiz erta ketmagan
+  //    bo'lsa - kuniga 5 000 (ko'pi bilan).
+  //  * Oylik "vaqtga rioya" bonusi 100 000 - oyda ruxsatsiz erta ketish yo'q.
+  //  * Oylik "eng intizomli xodim" bonusi 200 000 - oyda birorta kechikish,
+  //    ruxsat va sababsiz kelmaslik yo'q.
+  //  * Soniyalar tashlanadi (faqat to'liq daqiqalar).
+  //  * Uzluksiz ikki smena (birinchisi tugagan zahoti ikkinchisi boshlanadi)
+  //    bitta ish davri hisoblanadi: bitta kelish + yakuniy ketish.
+  //  * Tasdiqlangan ruxsat (Grafik -> "Kechikishga ruxsat") bo'lgan kunda
+  //    kechikish ruxsat vaqtidan hisoblanadi, erta ketish jarimasi yo'q.
+  // Maosh bo'limiga ULANMAGAN (mijoz so'rovi: maosh hozircha to'xtatilgan).
+  // Admin (huquqi bo'lsa) har bir yozuvni o'chirishi yoki summasini
+  // tuzatishi mumkin - bular "bonusFine" to'plamida saqlanadi.
+  var BF_DEFAULTS = {
+    startDate: "2026-10-19",
+    lateBase: 3e4,
+    lateBaseMaxMinutes: 30,
+    latePerMinute: 2e3,
+    earlyLeaveSmall: 2e4,
+    earlyLeaveSmallMaxMinutes: 15,
+    earlyLeaveBig: 5e4,
+    noCheckout: 2e4,
+    earlyBonus: 5e3,
+    earlyBonusMinMinutes: 5,
+    monthlyOnTimeBonus: 1e5,
+    monthlyBestBonus: 2e5
+  };
+  var BF_FIELD_LABELS = {
+    startDate: "Qoidalar kuchga kirgan sana",
+    lateBase: "Kechikish: 1-N daqiqa uchun jarima (so'm)",
+    lateBaseMaxMinutes: "Kechikish: N (daqiqa)",
+    latePerMinute: "Kechikish: N dan keyin har daqiqa uchun (so'm)",
+    earlyLeaveSmall: "Erta ketish: 1-M daqiqa uchun (so'm)",
+    earlyLeaveSmallMaxMinutes: "Erta ketish: M (daqiqa)",
+    earlyLeaveBig: "Erta ketish: M daqiqadan ortiq (so'm)",
+    noCheckout: "Ketish qayd etilmasa, har smena (so'm)",
+    earlyBonus: "Erta kelish bonusi, kuniga (so'm)",
+    earlyBonusMinMinutes: "Erta kelish: kamida necha daqiqa oldin",
+    monthlyOnTimeBonus: "Oylik \"vaqtga rioya\" bonusi (so'm, 0 = o'chiq)",
+    monthlyBestBonus: "Oylik \"eng intizomli xodim\" bonusi (so'm, 0 = o'chiq)"
+  };
+  var BF_NOCHECKOUT_WAIT_MS = 6 * 60 * 60 * 1e3;
+  var BF_TYPE_LABEL = {
+    late: "Kechikish",
+    early: "Ruxsatsiz erta ketish",
+    nocheckout: "Ketish qayd etilmagan",
+    bonus: "Erta kelish bonusi",
+    monthlyOnTime: "Vaqtga rioya bonusi (oylik)",
+    monthlyBest: "Eng intizomli xodim bonusi (oylik)"
+  };
+  var BF_OYLAR = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+  function bfConfig(raw) {
+    const c = { ...BF_DEFAULTS };
+    if (raw && typeof raw === "object") {
+      for (const k of Object.keys(BF_DEFAULTS)) {
+        const v = raw[k];
+        if (v === void 0 || v === null || v === "") continue;
+        if (k === "startDate") {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) c[k] = String(v);
+        } else if (Number.isFinite(Number(v)) && Number(v) >= 0) {
+          c[k] = Number(v);
+        }
+      }
+    }
+    return c;
+  }
+  function bfLateFine(min, c) {
+    if (min < 1) return 0;
+    return min <= c.lateBaseMaxMinutes ? c.lateBase : c.lateBase + (min - c.lateBaseMaxMinutes) * c.latePerMinute;
+  }
+  function bfEarlyLeaveFine(min, c) {
+    if (min < 1) return 0;
+    return min <= c.earlyLeaveSmallMaxMinutes ? c.earlyLeaveSmall : c.earlyLeaveBig;
+  }
+  function bfMinutes(ms) {
+    return ms > 0 ? Math.floor(ms / 6e4) : 0;
+  }
+  function bfTime(d) {
+    return d ? hhmm(d).slice(0, 5) : "—";
+  }
+  function bfPeriods(record, schedule, dateKey) {
+    const r = record || {};
+    const dt = (v) => v ? new Date(v) : null;
+    let s1 = dt(r.scheduledStart), e1 = r.scheduledEnd ? normalizeScheduledEnd(r.scheduledStart, r.scheduledEnd) : null;
+    let s2 = dt(r.scheduledStart2), e2 = r.scheduledEnd2 ? normalizeScheduledEnd(r.scheduledStart2, r.scheduledEnd2) : null;
+    if ((!s1 || !e1) && schedule && schedule.workStart && schedule.workEnd) {
+      s1 = combineTashkent(dateKey, schedule.workStart);
+      e1 = combineTashkentShiftEnd(dateKey, schedule.workStart, schedule.workEnd);
+    }
+    if ((!s2 || !e2) && schedule && hasSecondShift(schedule)) {
+      s2 = combineTashkent(dateKey, schedule.workStart2);
+      e2 = combineTashkentShiftEnd(dateKey, schedule.workStart2, schedule.workEnd2);
+    }
+    if (!s1 || !e1) return [];
+    if (s2 && e2) {
+      if (s2.getTime() - e1.getTime() <= 6e4) {
+        const out = r.checkOutTime2 ? r.checkOutTime2 : r.checkInTime2 ? null : r.checkOutTime;
+        return [{ n: 1, merged: true, start: s1, end: e2, in: dt(r.checkInTime), out: dt(out) }];
+      }
+      return [
+        { n: 1, start: s1, end: e1, in: dt(r.checkInTime), out: dt(r.checkOutTime) },
+        { n: 2, start: s2, end: e2, in: dt(r.checkInTime2), out: dt(r.checkOutTime2) }
+      ];
+    }
+    return [{ n: 1, start: s1, end: e1, in: dt(r.checkInTime), out: dt(r.checkOutTime) }];
+  }
+  // Bitta kun (adminning tuzatishlarisiz).
+  function bfComputeDay({ dateKey, record, schedule, status, permission, cfg, nowMs }) {
+    const day = { dateKey, status, periods: [], items: [], worked: false, absent: false, late: false, pending: false, bonusCandidate: false, permission: !!permission };
+    if (!WORK_LIKE_STATUSES.has(status)) return day;
+    const periods = bfPeriods(record, schedule, dateKey);
+    day.periods = periods;
+    if (!periods.length) return day;
+    let allEarly = true;
+    for (const p of periods) {
+      if (!p.in) {
+        allEarly = false;
+        continue;
+      }
+      day.worked = true;
+      let lateFrom = p.start;
+      if (permission && p.n === 1 && permission.allowedStartTime) {
+        const a = combineTashkent(dateKey, permission.allowedStartTime);
+        if (a.getTime() > lateFrom.getTime()) lateFrom = a;
+      }
+      p.lateMin = bfMinutes(p.in.getTime() - lateFrom.getTime());
+      if (p.lateMin >= 1) {
+        day.late = true;
+        day.items.push({ key: `late${p.n}`, type: "late", sign: -1, amount: bfLateFine(p.lateMin, cfg), minutes: p.lateMin, shift: p.n });
+      }
+      p.earlyArriveMin = bfMinutes(p.start.getTime() - p.in.getTime());
+      if (p.earlyArriveMin < cfg.earlyBonusMinMinutes) allEarly = false;
+      if (p.out) {
+        p.earlyLeaveMin = bfMinutes(p.end.getTime() - p.out.getTime());
+        if (p.earlyLeaveMin >= 1 && !permission) {
+          day.items.push({ key: `early${p.n}`, type: "early", sign: -1, amount: bfEarlyLeaveFine(p.earlyLeaveMin, cfg), minutes: p.earlyLeaveMin, shift: p.n });
+        }
+      } else if (nowMs - p.end.getTime() > BF_NOCHECKOUT_WAIT_MS) {
+        day.items.push({ key: `nocheckout${p.n}`, type: "nocheckout", sign: -1, amount: cfg.noCheckout, shift: p.n });
+      } else {
+        day.pending = true;
+      }
+    }
+    day.absent = !day.worked;
+    day.bonusCandidate = periods.every((p) => p.in) && allEarly;
+    return day;
+  }
+  function bfApplyAdjustment(item, adj) {
+    item.original = item.amount;
+    if (!adj) return;
+    item.adj = adj;
+    if (adj.action === "delete") {
+      item.amount = 0;
+      item.deleted = true;
+    } else if (adj.action === "set") {
+      item.amount = Math.max(0, Math.round(Number(adj.amount) || 0));
+      item.edited = true;
+    }
+  }
+  // Kunga tuzatishlarni qo'llab, erta kelish bonusini hal qiladi.
+  // adjFor(key) - "YYYY-MM-DD|late1" kabi kalit bo'yicha tuzatishni qaytaradi.
+  function bfFinalizeDay(day, cfg, adjFor) {
+    for (const it of day.items) bfApplyAdjustment(it, adjFor(`${day.dateKey}|${it.key}`));
+    if (day.bonusCandidate && cfg.earlyBonus > 0) {
+      const earlyBlocks = day.items.some((i) => i.type === "early" && !i.deleted);
+      const noCheckoutBlocks = day.items.some((i) => i.type === "nocheckout" && !i.deleted);
+      if (!earlyBlocks && !noCheckoutBlocks) {
+        const it = { key: "bonus", type: "bonus", sign: 1, amount: cfg.earlyBonus, pending: day.pending };
+        if (day.pending) it.amount = 0;
+        bfApplyAdjustment(it, adjFor(`${day.dateKey}|bonus`));
+        day.items.push(it);
+      }
+    }
+    day.fine = day.items.filter((i) => i.sign < 0).reduce((s, i) => s + i.amount, 0);
+    day.bonus = day.items.filter((i) => i.sign > 0).reduce((s, i) => s + i.amount, 0);
+    return day;
+  }
+  // Bitta xodimning bitta oyi.
+  function bfComputeMonth({ employee, year, month, scheduleHistory, attendanceByDate, dayStatusByDate, permissionByDate, adjustments, cfg, nowMs = Date.now() }) {
+    const monthStart = monthDateKey(year, month, 1);
+    const monthEnd = monthDateKey(year, month, daysInMonth(year, month));
+    const todayKey = tashkentDateKey();
+    const from = monthStart > cfg.startDate ? monthStart : cfg.startDate;
+    const to = monthEnd < todayKey ? monthEnd : todayKey;
+    const periodKey = `${year}-${String(month).padStart(2, "0")}`;
+    const adjMap = adjustments || /* @__PURE__ */ new Map();
+    const adjFor = (key) => adjMap.get(key) || null;
+    const days = [];
+    let anyPermission = false, anyUnexcusedAbsence = false;
+    for (let dateKey = from; dateKey <= to; dateKey = addDaysToKey(dateKey, 1)) {
+      const explicit = dayStatusByDate.get(dateKey);
+      if (explicit === DAY_STATUS_PERMISSION) anyPermission = true;
+      const status = resolveDayStatusSync(explicit, scheduleHistory, dateKey);
+      const schedule = pickScheduleForDate(scheduleHistory, dateKey);
+      const permission = permissionByDate.get(dateKey) || null;
+      if (permission) anyPermission = true;
+      const day = bfFinalizeDay(bfComputeDay({ dateKey, record: attendanceByDate.get(dateKey) || null, schedule, status, permission, cfg, nowMs }), cfg, adjFor);
+      if (WORK_LIKE_STATUSES.has(status) && day.periods.length && day.absent && dateKey < todayKey && !permission) anyUnexcusedAbsence = true;
+      days.push(day);
+    }
+    const monthly = [];
+    const anyWorked = days.some((d) => d.worked);
+    const finished = todayKey > monthEnd;
+    if (from <= to && anyWorked) {
+      if (cfg.monthlyOnTimeBonus > 0) {
+        const lost = days.some((d) => d.items.some((i) => i.type === "early" && !i.deleted));
+        const it = { key: `${periodKey}|monthlyOnTime`, type: "monthlyOnTime", sign: 1, amount: lost || !finished ? 0 : cfg.monthlyOnTimeBonus, state: lost ? "lost" : finished ? "earned" : "pending", reason: lost ? "Oy davomida ruxsatsiz erta ketish bo'lgan" : "" };
+        bfApplyAdjustment(it, adjFor(it.key));
+        monthly.push(it);
+      }
+      if (cfg.monthlyBestBonus > 0) {
+        const anyLate = days.some((d) => d.late);
+        const reasons = [];
+        if (anyLate) reasons.push("kechikish bo'lgan");
+        if (anyPermission) reasons.push("ruxsat so'ralgan");
+        if (anyUnexcusedAbsence) reasons.push("sababsiz kelmagan kun bor");
+        const lost = reasons.length > 0;
+        const it = { key: `${periodKey}|monthlyBest`, type: "monthlyBest", sign: 1, amount: lost || !finished ? 0 : cfg.monthlyBestBonus, state: lost ? "lost" : finished ? "earned" : "pending", reason: lost ? "Oy davomida " + reasons.join(", ") : "" };
+        bfApplyAdjustment(it, adjFor(it.key));
+        monthly.push(it);
+      }
+    }
+    const count = (t) => days.reduce((s, d) => s + d.items.filter((i) => i.type === t && !i.deleted).length, 0);
+    const sum = (t) => days.reduce((s, d) => s + d.items.filter((i) => i.type === t).reduce((a, i) => a + i.amount, 0), 0);
+    const fineTotal = days.reduce((s, d) => s + d.fine, 0);
+    const dailyBonus = days.reduce((s, d) => s + d.bonus, 0);
+    const monthlyBonus = monthly.reduce((s, i) => s + i.amount, 0);
+    return {
+      employeeId: employee.id,
+      employeeName: `${employee.firstName} ${employee.lastName || ""}`.trim(),
+      photoUrl: employee.photoUrl || null,
+      periodKey,
+      from,
+      to,
+      finished,
+      days,
+      monthly,
+      lateCount: count("late"),
+      lateSum: sum("late"),
+      earlyCount: count("early"),
+      earlySum: sum("early"),
+      noCheckoutCount: count("nocheckout"),
+      noCheckoutSum: sum("nocheckout"),
+      bonusDays: days.filter((d) => d.items.some((i) => i.type === "bonus" && i.amount > 0)).length,
+      dailyBonus,
+      monthlyBonus,
+      fineTotal,
+      bonusTotal: dailyBonus + monthlyBonus,
+      net: dailyBonus + monthlyBonus - fineTotal
+    };
+  }
+  function bfAdjustmentMap(rows) {
+    const map = /* @__PURE__ */ new Map();
+    for (const r of rows || []) {
+      if (r && r.kind === "adj" && r.employeeId && r.key) map.set(`${r.employeeId}|${r.key}`, r);
+    }
+    return map;
+  }
+  function bfAdjustmentsFor(map, employeeId) {
+    const out = /* @__PURE__ */ new Map();
+    const prefix = employeeId + "|";
+    for (const [k, v] of map) if (k.startsWith(prefix)) out.set(k.slice(prefix.length), v);
+    return out;
+  }
+  function bfAdjId(employeeId, key) {
+    return `adj_${employeeId}_${String(key).replace(/[^A-Za-z0-9-]/g, "_")}`;
+  }
+  function bfItemLabel(it) {
+    let s = BF_TYPE_LABEL[it.type] || it.type;
+    if (it.shift === 2) s += " (2-smena)";
+    return s;
+  }
+  function bfSom(n) {
+    return formatSom(n) + " so'm";
+  }
+
+  // src/ui/admin/bonusFineSection.js
+  // 19.10.2026: "Bonus va jarimalar" bo'limi. Ko'rish - hisobotni ko'ra
+  // oladigan admin; o'chirish/tuzatish va qoidalarni o'zgartirish - faqat
+  // dastur egasi yoki "Bonus/jarimani boshqarish" huquqi berilgan admin.
+  var _bfDb;
+  var _bfUser;
+  var _bfCanManage = false;
+  var _bfRows = [];
+  var _bfSelected = null;
+  var _bfCfg = bfConfig(null);
+  async function canManageBonusFine(db2, user) {
+    if (isDeleteOwnerLogin(user.username)) return true;
+    try {
+      const perms = await db2.getPermissions(user.id);
+      return perms.has("bonus_fine_manage");
+    } catch (err) {
+      return false;
+    }
+  }
+  async function canSeeBonusFine(db2, user) {
+    if (await canManageBonusFine(db2, user)) return true;
+    return hasPermission(db2, user, "view_reports");
+  }
+  async function bfLoadConfig(db2) {
+    try {
+      return bfConfig(typeof db2.getBonusFineConfig === "function" ? await db2.getBonusFineConfig() : null);
+    } catch (err) {
+      console.error("Bonus/jarima sozlamasi o'qilmadi:", err);
+      return bfConfig(null);
+    }
+  }
+  async function initBonusFine(db2, user) {
+    _bfDb = db2;
+    _bfUser = user;
+    _bfCanManage = await canManageBonusFine(db2, user);
+    const y = document.getElementById("bfYear");
+    const m = document.getElementById("bfMonth");
+    const today = tashkentDateKey();
+    y.value = today.slice(0, 4);
+    m.value = String(Number(today.slice(5, 7)));
+    const calc = document.getElementById("btnBfCalc");
+    if (!calc.dataset.wired) {
+      calc.dataset.wired = "1";
+      calc.addEventListener("click", refreshBonusFine);
+      document.getElementById("btnBfConfig").addEventListener("click", bfToggleConfig);
+    }
+    document.getElementById("btnBfConfig").style.display = _bfCanManage ? "" : "none";
+  }
+  function bfToggleConfig() {
+    const box = document.getElementById("bfConfigBox");
+    if (box.style.display !== "none") {
+      box.style.display = "none";
+      return;
+    }
+    box.innerHTML = "";
+    const title = document.createElement("h3");
+    title.style.marginTop = "0";
+    title.textContent = "Bonus va jarima qoidalari";
+    box.appendChild(title);
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:4px 16px;";
+    for (const key of Object.keys(BF_DEFAULTS)) {
+      const row = document.createElement("div");
+      row.className = "form-row";
+      const label = document.createElement("label");
+      label.textContent = BF_FIELD_LABELS[key] || key;
+      const input = document.createElement("input");
+      input.type = key === "startDate" ? "date" : "number";
+      if (key !== "startDate") input.min = "0";
+      input.dataset.bfKey = key;
+      input.value = _bfCfg[key];
+      row.append(label, input);
+      grid.appendChild(row);
+    }
+    box.appendChild(grid);
+    const err = document.createElement("p");
+    err.className = "error-text";
+    const save = document.createElement("button");
+    save.className = "btn btn-primary";
+    save.textContent = "\u{1F4BE} Saqlash";
+    save.addEventListener("click", async () => {
+      const raw = {};
+      box.querySelectorAll("input[data-bf-key]").forEach((i) => {
+        raw[i.dataset.bfKey] = i.value;
+      });
+      const cfg = bfConfig(raw);
+      save.disabled = true;
+      try {
+        await _bfDb.setBonusFineConfig(cfg);
+        _bfDb.addAuditLog(_bfUser.id, _bfUser.username, "BONUS_FINE_CONFIG", "settings", "bonusFine", JSON.stringify(cfg)).catch(() => {
+        });
+        _bfCfg = cfg;
+        box.style.display = "none";
+        await refreshBonusFine();
+      } catch (e) {
+        err.textContent = uzError(e);
+      } finally {
+        save.disabled = false;
+      }
+    });
+    box.append(err, save);
+    box.style.display = "block";
+  }
+  async function refreshBonusFine() {
+    const year = Number(document.getElementById("bfYear").value);
+    const month = Number(document.getElementById("bfMonth").value);
+    if (!year || !month || month < 1 || month > 12) return;
+    const tbody2 = document.querySelector("#bfTable tbody");
+    const summaryEl2 = document.getElementById("bfSummary");
+    tbody2.innerHTML = `<tr><td colspan="9" class="muted">Hisoblanmoqda…</td></tr>`;
+    document.getElementById("bfDetail").innerHTML = "";
+    const monthStart = monthDateKey(year, month, 1);
+    const monthEnd = monthDateKey(year, month, daysInMonth(year, month));
+    let employees, attendanceRows, allSchedules, allDayStatuses, permissions, bfRows;
+    try {
+      [employees, attendanceRows, allSchedules, allDayStatuses, permissions, bfRows, _bfCfg] = await Promise.all([
+        _bfDb.listEmployees({ activeOnly: true }),
+        _bfDb.listAttendanceForRange(monthStart, monthEnd),
+        _bfDb.listAllSchedules(),
+        _bfDb.listAllDayStatuses(),
+        _bfDb.listAllLatePermissions(),
+        typeof _bfDb.listBonusFine === "function" ? _bfDb.listBonusFine(null).catch((e) => {
+          console.error("listBonusFine failed (non-fatal):", e);
+          return [];
+        }) : [],
+        bfLoadConfig(_bfDb)
+      ]);
+    } catch (err) {
+      tbody2.innerHTML = "";
+      summaryEl2.textContent = uzError(err);
+      return;
+    }
+    const group = (rows, valueFn) => {
+      const map = /* @__PURE__ */ new Map();
+      for (const r of rows) {
+        if (!map.has(r.employeeId)) map.set(r.employeeId, /* @__PURE__ */ new Map());
+        map.get(r.employeeId).set(r.dateKey, valueFn(r));
+      }
+      return map;
+    };
+    const schedulesByEmployee = /* @__PURE__ */ new Map();
+    for (const v of allSchedules) {
+      if (!schedulesByEmployee.has(v.employeeId)) schedulesByEmployee.set(v.employeeId, []);
+      schedulesByEmployee.get(v.employeeId).push(v);
+    }
+    const attendanceBy = group(attendanceRows, (r) => r);
+    const statusBy = group(allDayStatuses, (r) => r.status);
+    const permBy = group(permissions, (r) => r);
+    const adjAll = bfAdjustmentMap(bfRows);
+    const empty = /* @__PURE__ */ new Map();
+    _bfRows = employees.map((employee) => bfComputeMonth({
+      employee,
+      year,
+      month,
+      scheduleHistory: schedulesByEmployee.get(employee.id) || [],
+      attendanceByDate: attendanceBy.get(employee.id) || empty,
+      dayStatusByDate: statusBy.get(employee.id) || empty,
+      permissionByDate: permBy.get(employee.id) || empty,
+      adjustments: bfAdjustmentsFor(adjAll, employee.id),
+      cfg: _bfCfg
+    })).sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+    bfRenderTable();
+    if (_bfSelected) {
+      const again = _bfRows.find((r) => r.employeeId === _bfSelected);
+      if (again) bfRenderDetail(again);
+    }
+  }
+  function bfRenderTable() {
+    const tbody2 = document.querySelector("#bfTable tbody");
+    tbody2.innerHTML = "";
+    const first = _bfRows[0];
+    if (!first) {
+      tbody2.innerHTML = `<tr><td colspan="9" class="muted">Faol xodim yo'q.</td></tr>`;
+    }
+    let fines = 0, bonuses = 0;
+    for (const r of _bfRows) {
+      fines += r.fineTotal;
+      bonuses += r.bonusTotal;
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      const cnt = (n, s) => n ? `${n} ta / ${formatSom(s)}` : "—";
+      tr.innerHTML = `<td><b>${escapeHtml(r.employeeName)}</b></td>
+        <td>${cnt(r.lateCount, r.lateSum)}</td>
+        <td>${cnt(r.earlyCount, r.earlySum)}</td>
+        <td>${cnt(r.noCheckoutCount, r.noCheckoutSum)}</td>
+        <td style="color:#C62828; font-weight:700;">${r.fineTotal ? "−" + formatSom(r.fineTotal) : "0"}</td>
+        <td>${r.bonusDays ? `${r.bonusDays} kun / ${formatSom(r.dailyBonus)}` : "—"}</td>
+        <td>${r.monthly.map((i) => `${i.type === "monthlyBest" ? "\u{1F3C6}" : "⏱"} ${i.state === "lost" && !i.edited ? "yo'q" : i.state === "pending" && !i.edited ? "kutilmoqda" : formatSom(i.amount)}`).join("<br>") || "—"}</td>
+        <td style="color:#1B7F3B; font-weight:700;">${r.bonusTotal ? "+" + formatSom(r.bonusTotal) : "0"}</td>
+        <td style="font-weight:800;">${r.net >= 0 ? "+" : "−"}${formatSom(Math.abs(r.net))}</td>`;
+      tr.addEventListener("click", () => {
+        _bfSelected = r.employeeId;
+        bfRenderDetail(r);
+      });
+      tbody2.appendChild(tr);
+    }
+    const r0 = _bfRows[0];
+    document.getElementById("bfSummary").textContent = r0 ? `Hisob davri: ${ddmmyyyy(r0.from)} — ${ddmmyyyy(r0.to)} | Xodimlar: ${_bfRows.length} | Jami jarima: ${formatSom(fines)} so'm | Jami bonus: ${formatSom(bonuses)} so'm | Batafsil ko'rish uchun xodim ustiga bosing.` : "";
+  }
+  function bfStateText(it) {
+    if (it.deleted) return `<span style="color:#888;">o'chirilgan</span>`;
+    if (it.edited) return `<span style="color:#E65100;">tuzatilgan</span>`;
+    if (it.state === "lost") return `<span style="color:#888;">berilmaydi</span>`;
+    if (it.state === "pending" || it.pending) return `<span style="color:#1565C0;">kutilmoqda</span>`;
+    return "avtomatik";
+  }
+  function bfAmountText(it) {
+    const shown = it.deleted ? it.original : it.amount;
+    if ((it.state === "pending" || it.pending) && !it.edited && !it.deleted) return "—";
+    if (it.state === "lost" && !it.edited) return "—";
+    const txt = (it.sign < 0 ? "−" : "+") + formatSom(shown);
+    return it.deleted ? `<s>${txt}</s>` : `<b style="color:${it.sign < 0 ? "#C62828" : "#1B7F3B"};">${txt}</b>`;
+  }
+  function bfActions(r, it, key) {
+    if (!_bfCanManage) return "";
+    const wrap = document.createElement("span");
+    wrap.style.whiteSpace = "nowrap";
+    const mk = (txt, fn) => {
+      const b = document.createElement("button");
+      b.className = "btn btn-secondary";
+      b.style.cssText = "padding:4px 8px; font-size:12px; margin-right:4px;";
+      b.textContent = txt;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fn();
+      });
+      wrap.appendChild(b);
+    };
+    if (it.adj) {
+      mk("↩ Tiklash", () => bfRestore(r, key, it));
+    } else {
+      mk("\u{1F5D1} O'chirish", () => bfAdjust(r, key, it, "delete"));
+      mk("✏️ Tuzatish", () => bfAdjust(r, key, it, "set"));
+    }
+    return wrap;
+  }
+  function bfRenderDetail(r) {
+    const box = document.getElementById("bfDetail");
+    box.innerHTML = "";
+    const card = document.createElement("div");
+    card.className = "card";
+    const h = document.createElement("h3");
+    h.style.marginTop = "0";
+    h.textContent = `${r.employeeName} — ${BF_OYLAR[Number(r.periodKey.slice(5, 7)) - 1]} ${r.periodKey.slice(0, 4)}`;
+    const sub = document.createElement("p");
+    sub.className = "muted";
+    sub.textContent = `Jarima: ${bfSom(r.fineTotal)} | Bonus: ${bfSom(r.bonusTotal)} | Natija: ${r.net >= 0 ? "+" : "−"}${bfSom(Math.abs(r.net))}`;
+    card.append(h, sub);
+    const table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = `<thead><tr><th>Sana</th><th>Jadval</th><th>Kelish — Ketish</th><th>Hodisa</th><th>Daqiqa</th><th>Summa</th><th>Holat</th><th></th></tr></thead>`;
+    const tb = document.createElement("tbody");
+    const addRow = (dateText, schedText, timesText, it, key, note) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${dateText}</td><td>${schedText}</td><td>${timesText}</td><td>${escapeHtml(bfItemLabel(it))}${note ? `<br><span class="muted" style="font-size:12px;">${escapeHtml(note)}</span>` : ""}</td><td>${it.minutes != null ? it.minutes : ""}</td><td>${bfAmountText(it)}</td><td>${bfStateText(it)}</td><td></td>`;
+      const act = bfActions(r, it, key);
+      if (act) tr.lastElementChild.appendChild(act);
+      tb.appendChild(tr);
+    };
+    for (const it of r.monthly) {
+      const note = it.adj && it.adj.reason ? `Sabab: ${it.adj.reason} (${it.adj.byName || ""})` : it.reason;
+      addRow("Oylik", "—", "—", it, it.key, note);
+    }
+    let any = r.monthly.length > 0;
+    for (const d of r.days) {
+      if (!d.items.length) continue;
+      any = true;
+      const sched = d.periods.map((p) => `${bfTime(p.start)}–${bfTime(p.end)}`).join(", ");
+      const times = d.periods.map((p) => `${bfTime(p.in)} — ${bfTime(p.out)}`).join("<br>");
+      for (const it of d.items) {
+        const note = it.adj && it.adj.reason ? `Sabab: ${it.adj.reason} (${it.adj.byName || ""})` : "";
+        addRow(ddmmyyyy(d.dateKey), sched, times, it, `${d.dateKey}|${it.key}`, note);
+      }
+    }
+    if (!any) tb.innerHTML = `<tr><td colspan="8" class="muted">Bu oyda bonus yoki jarima yo'q.</td></tr>`;
+    table.appendChild(tb);
+    const wrap = document.createElement("div");
+    wrap.style.overflowX = "auto";
+    wrap.appendChild(table);
+    card.appendChild(wrap);
+    box.appendChild(card);
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  async function bfAdjust(r, key, it, action) {
+    let amount = null;
+    if (action === "set") {
+      const v = await promptDialog({ title: "Summani tuzatish", message: `${bfItemLabel(it)} — yangi summa (so'm):`, placeholder: String(it.amount || it.original || 0), okText: "Davom etish" });
+      if (v === null) return;
+      amount = Math.round(Number(String(v).replace(/\s/g, "")));
+      if (!Number.isFinite(amount) || amount < 0) {
+        await alertDialog({ title: "Xatolik", message: "Summa noto'g'ri kiritildi." });
+        return;
+      }
+    }
+    const reason = await promptDialog({ title: action === "delete" ? "O'chirish sababi" : "Tuzatish sababi", message: "Sababini yozing (masalan: texnik nosozlik, uzrli sabab):", placeholder: "Sabab", okText: "Saqlash" });
+    if (reason === null) return;
+    if (!reason.trim()) {
+      await alertDialog({ title: "Xatolik", message: "Sabab yozilishi shart." });
+      return;
+    }
+    try {
+      await _bfDb.setBonusFineAdjustment(bfAdjId(r.employeeId, key), {
+        employeeId: r.employeeId,
+        key,
+        action,
+        amount,
+        reason: reason.trim(),
+        originalAmount: it.original != null ? it.original : it.amount,
+        byId: _bfUser.id,
+        byName: _bfUser.fullName || _bfUser.username,
+        at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      _bfDb.addAuditLog(_bfUser.id, _bfUser.username, action === "delete" ? "BONUS_FINE_DELETED" : "BONUS_FINE_EDITED", "employee", r.employeeId, `${r.employeeName} | ${key} | ${action === "set" ? amount + " so'm | " : ""}${reason.trim()}`).catch(() => {
+      });
+      await refreshBonusFine();
+    } catch (err) {
+      await alertDialog({ title: "Xatolik", message: uzError(err) });
+    }
+  }
+  async function bfRestore(r, key, it) {
+    const ok = await confirmDialog({ title: "Tiklash", message: `${bfItemLabel(it)} avtomatik hisobga qaytarilsinmi?`, okText: "Ha, tiklash", cancelText: "Bekor qilish" });
+    if (!ok) return;
+    try {
+      await _bfDb.deleteBonusFineAdjustment(bfAdjId(r.employeeId, key));
+      _bfDb.addAuditLog(_bfUser.id, _bfUser.username, "BONUS_FINE_RESTORED", "employee", r.employeeId, `${r.employeeName} | ${key}`).catch(() => {
+      });
+      await refreshBonusFine();
+    } catch (err) {
+      await alertDialog({ title: "Xatolik", message: uzError(err) });
+    }
+  }
+
   // src/ui/admin/payrollSection.js
   var _db11;
   var _user9;
@@ -13474,6 +14282,8 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
     { key: "attendance", title: "Davomat", permission: "view_attendance", refresh: refreshAttendance },
     { key: "schedule", title: "Grafik / Kalendar", permission: "manage_schedule", refresh: refreshSchedule },
     { key: "reports", title: "Hisobotlar", permission: "view_reports", refresh: refreshReports },
+    // 19.10.2026: bonus va jarimalar (o'chirish/tuzatish - alohida huquq).
+    { key: "bonusFine", title: "Bonus va jarimalar", permission: null, customCheck: canSeeBonusFine, refresh: refreshBonusFine },
     // 05.09.2026 so'rovi: oylik maosh hisobi. Xavfsizlik bo'limi bilan bir
     // xil qoida — Super Admin bo'lishning O'ZI yetarli emas, faqat
     // admin11/M.Ali yoki "Maosh paneli" ptichkasi ataylab belgilangan
@@ -13560,6 +14370,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
       initSecurity(db2, user),
       initRights(db2, user),
       initPayroll(db2, user),
+      initBonusFine(db2, user),
       initBranches(db2, user)
     ]);
     if (visibleSections.length) {
@@ -13706,6 +14517,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 16, d: "2026-10-19", note: "Bonus va jarimalar: avtomatik kechikish/erta ketish/ketish qayd etilmagan jarimalari, erta kelish va oylik bonuslar; admin bo'limi; kioskda \"Bonus va jarimalarim\" tugmasi; salomlashuv yuqoriga ko'tarildi." },
     { n: 15, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi endi kalendardan bosib tanlanadi." },
     { n: 14, d: "2026-10-17", note: "2 haftada 1 marta dam sanasi: Kun/Oy/Yil tanlov ro'yxatlari (telefonda sana buzilib, saqlanmay qolgan edi)." },
     { n: 13, d: "2026-10-17", note: "Xodim saqlashda kutilmagan xato bo'lsa, ekranda ko'rsatiladi (oldin jimgina to'xtardi)." },
@@ -13761,7 +14573,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-17 16:05";
+  var BUILD_STAMP = "2026-10-19 12:00";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
