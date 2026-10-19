@@ -10257,17 +10257,16 @@ ${origLine}${reasonLine}` });
             scheduleText: sch ? `${sch.workStart}\u2013${sch.workEnd}` + (hasSecondShift(sch) ? `, ${sch.workStart2}\u2013${sch.workEnd2}` : "") : "\u2014",
             restText: restDaysText(sch),
             restToday: isRestToday(sch),
-            dayLabel: "Bugun",
-            inTime: "\u2026",
-            outTime: "\u2026"
+            todayState: "loading"
           };
           const redraw = showEmployeePhoto(info);
           try {
             const rec = await _db3.getAttendanceForDate(employee.id, tashkentDateKey());
             const tm = (v) => v ? hhmm(new Date(v)).slice(0, 5) : "\u2014";
-            redraw({ ...info, inTime: rec ? tm(rec.checkInTime) : "\u2014", outTime: rec ? tm(rec.checkOutTime2 || rec.checkOutTime) : "\u2014" });
+            const came = !!(rec && rec.checkInTime);
+            redraw({ ...info, todayState: came ? "in" : info.restToday ? "rest" : "absent", inTime: came ? tm(rec.checkInTime) : "\u2014", outTime: came ? tm(rec.checkOutTime2 || rec.checkOutTime) : "\u2014" });
           } catch (err) {
-            redraw({ ...info, inTime: "\u2014", outTime: "\u2014" });
+            redraw({ ...info, todayState: null });
           }
         });
       }
@@ -13558,20 +13557,15 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
       r.scheduleText = sch ? `${sch.workStart}\u2013${sch.workEnd}` + (hasSecondShift(sch) ? `, ${sch.workStart2}\u2013${sch.workEnd2}` : "") : "\u2014";
       r.restText = restDaysText(sch);
       r.restToday = isRestToday(sch);
+      // 19.10.2026 so'rovi: faqat BUGUNGI holat - kelgan bo'lsa kelish/ketish
+      // vaqti, kelmagan bo'lsa "Hali ishda emas" (dam kuni bo'lsa "Bugun dam
+      // kuni"). Boshqa oy ko'rilayotgan bo'lsa bu qator chiqmaydi.
       const att = attendanceBy.get(r.employeeId) || empty;
-      let rec = att.get(infoDay) || null, recDay = infoDay;
-      if (!rec) {
-        const keys = [...att.keys()].filter((k) => k <= infoDay && att.get(k).checkInTime).sort();
-        if (keys.length) {
-          recDay = keys[keys.length - 1];
-          rec = att.get(recDay);
-        }
-      }
-      r.lastDayLabel = recDay === todayKey ? "Bugun" : ddmmyyyy(recDay).slice(0, 5);
+      const rec = infoDay === todayKey ? att.get(todayKey) || null : null;
       const tm = (v) => v ? hhmm(new Date(v)).slice(0, 5) : "\u2014";
+      r.todayState = infoDay !== todayKey ? null : rec && rec.checkInTime ? "in" : r.restToday ? "rest" : "absent";
       r.lastIn = rec ? tm(rec.checkInTime) : "\u2014";
       r.lastOut = rec ? tm(rec.checkOutTime2 || rec.checkOutTime) : "\u2014";
-      r.hasRec = !!(rec && rec.checkInTime);
     }
     bfRenderTable();
     if (_bfSelected) {
@@ -13600,7 +13594,7 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
           ${r.position ? `<div class="bf-emp-pos">${escapeHtml(r.position)}</div>` : ""}
           <div class="bf-emp-meta">Jadval: ${escapeHtml(r.scheduleText || "\u2014")}</div>
           <div class="rest-red rest-red-sm">Dam: ${escapeHtml(r.restText || "\u2014")}${r.restToday ? " (bugun)" : ""}</div>
-          <div class="bf-emp-meta">${escapeHtml(r.lastDayLabel || "Bugun")}: kelish <b>${escapeHtml(r.lastIn || "\u2014")}</b>, ketish <b>${escapeHtml(r.lastOut || "\u2014")}</b></div>
+          ${r.todayState ? `<div class="bf-emp-meta">${todayLineHtml(r.todayState, r.lastIn, r.lastOut)}</div>` : ""}
         </td>
         <td>${cnt(r.lateCount, r.lateSum)}</td>
         <td>${cnt(r.earlyCount, r.earlySum)}</td>
@@ -13641,7 +13635,7 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
         ${i.position ? `<div class="bf-lightbox-pos">${escapeHtml(i.position)}</div>` : ""}
         <div class="bf-lightbox-pos">Jadval: <b>${escapeHtml(i.scheduleText || "\u2014")}</b></div>
         ${i.restText ? `<div class="rest-red">Dam olish kuni: ${escapeHtml(i.restText)}${i.restToday ? " \u2014 bugun dam" : ""}</div>` : ""}
-        <div class="bf-lightbox-pos">${escapeHtml(i.dayLabel || "Bugun")}: kelish <b>${escapeHtml(i.inTime || "\u2014")}</b>, ketish <b>${escapeHtml(i.outTime || "\u2014")}</b></div>
+        ${i.todayState ? `<div class="bf-lightbox-pos">${todayLineHtml(i.todayState, i.inTime, i.outTime)}</div>` : ""}
         <button class="btn btn-primary" type="button">Yopish</button>`;
     };
     draw(info);
@@ -13658,6 +13652,13 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
     document.addEventListener("keydown", onKey);
     document.body.appendChild(ov);
     return draw;
+  }
+  function todayLineHtml(state, inTime, outTime) {
+    if (state === "in") return `Bugun: kelish <b>${escapeHtml(inTime || "\u2014")}</b>, ketish <b>${escapeHtml(outTime || "\u2014")}</b>`;
+    if (state === "absent") return `<span class="rest-red">Hali ishda emas</span>`;
+    if (state === "rest") return `<span class="rest-red">Bugun dam kuni</span>`;
+    if (state === "loading") return "Bugun: \u2026";
+    return "";
   }
   // 19.10.2026 so'rovi: dam olish kuni(lar)i matni. Haftalik + "2 haftada
   // 1 marta" dam ham hisobga olinadi.
@@ -13680,7 +13681,7 @@ Agar bu 'Ruxsat yo'q' bo'lsa \u2014 Firebase Console > Firestore > Rules bo'limi
     return computeDayStatusFromSchedule(schedule, today) === DAY_STATUS_REST;
   }
   function bfShowPhoto(r) {
-    showEmployeePhoto({ photoUrl: r.photoUrl, name: r.employeeName, position: r.position, scheduleText: r.scheduleText, restText: r.restText, restToday: r.restToday, dayLabel: r.lastDayLabel, inTime: r.lastIn, outTime: r.lastOut });
+    showEmployeePhoto({ photoUrl: r.photoUrl, name: r.employeeName, position: r.position, scheduleText: r.scheduleText, restText: r.restText, restToday: r.restToday, todayState: r.todayState, inTime: r.lastIn, outTime: r.lastOut });
   }
   function bfStateText(it) {
     if (it.deleted) return `<span style="color:#888;">o'chirilgan</span>`;
@@ -14756,6 +14757,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   // Versiyalar tarixi. Har safar yangi versiya chiqarilganda SHU RO'YXATGA
   // eng tepaga yangi qator qo'shiladi (n - ketma-ket raqam).
   var APP_CHANGELOG = [
+    { n: 23, d: "2026-10-19", note: "Surat oynasi va Bonus/jarima jadvali: bugun kelmagan bo'lsa qizil \"Hali ishda emas\", kelgan bo'lsa kelish vaqti va ketish (yoki chiziqcha)." },
     { n: 22, d: "2026-10-19", note: "Surat oynasida va Bonus/jarima jadvalida dam olish kuni qizil yozuvda ko'rsatiladi." },
     { n: 21, d: "2026-10-19", note: "Bonus va jarimalar va Xodimlar: xodim surati bosilsa kattalashadi; ism, lavozim, jadval va kelish/ketish vaqti ko'rinadi." },
     { n: 20, d: "2026-10-19", note: "Logo eski o'lchamiga qaytarildi (katta logo kamera ekranini surib, skanerlashni qiyinlashtirgan edi)." },
@@ -14818,7 +14820,7 @@ DIQQAT: bu filialga ${employeeCount} ta xodim biriktirilgan. O'chirilsa, ular he
   }
 
   // src/ui/appEntry.js
-  var BUILD_STAMP = "2026-10-19 15:00";
+  var BUILD_STAMP = "2026-10-19 15:20";
   console.log("Den Aroma build: " + BUILD_STAMP);
   var buildTag = document.createElement("div");
   buildTag.textContent = APP_CHANGELOG[0].n + "-versiya \u00b7 " + BUILD_STAMP;
